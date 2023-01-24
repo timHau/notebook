@@ -36,8 +36,8 @@ function MarkdownCell(props: CellProps) {
 
 
 function BlockCell(props: CellProps) {
-    if (props.cell.cellType === CellTypes.Markdown) {
-        return <MarkdownCell cell={props.cell} />
+    if (props.cell.cell_type === CellTypes.Markdown) {
+        return <MarkdownCell {...props} />
     } else {
         return (
             <div>
@@ -55,7 +55,7 @@ function Block(props: BlockProps) {
     return (
         <div>
             <div className="mb-1">
-                <BlockCell cell={props.cell} />
+                <BlockCell {...props} />
             </div>
             <div className="">
                 <span className="mr-3">Add Markdown</span>

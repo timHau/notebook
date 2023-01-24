@@ -1,5 +1,5 @@
 export type Cell = {
     id: string;
-    cellType: CellTypes;
+    cell_type: CellTypes;
     content: string;
 };

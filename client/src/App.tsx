@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react'
-import Notebook from './Notebook'
+import NotebookView from './Notebook'
 
 function App() {
 
   return (
     <div className="flex justify-center">
-      <Notebook />
+      <NotebookView />
     </div>
   )
 }

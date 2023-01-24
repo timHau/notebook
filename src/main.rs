@@ -1,10 +1,15 @@
+mod cell;
 mod notebook;
+mod traits;
+
+use std::sync::Mutex;
 
 use actix_cors::Cors;
-use actix_web::{get, http, post, web, App, HttpServer, Responder};
+use actix_web::{get, http, post, web, App, HttpResponse, HttpServer, Responder};
 use notebook::Notebook;
 use pyo3::prelude::*;
 use serde::Deserialize;
+use serde_json::json;
 
 #[derive(Deserialize)]
 struct EvalRequest {
@@ -36,9 +41,55 @@ async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
 }
 
 #[get("/")]
-async fn index() -> impl Responder {
+async fn index(state: web::Data<AppState>) -> impl Responder {
     let notebook = Notebook::new();
+    state.add_notebook(notebook.clone());
     web::Json(notebook)
+}
+
+#[derive(Deserialize)]
+struct SaveRequest {
+    uuid: String,
+    path: String,
+}
+
+#[post("/save")]
+async fn save(req: web::Json<SaveRequest>, state: web::Data<AppState>) -> impl Responder {
+    let notebook = state.find_notebook(&req.uuid);
+    match notebook {
+        Some(n) => {
+            n.save(&req.path).unwrap();
+            HttpResponse::Ok().json(json!({ "status": "ok" }))
+        }
+        None => {
+            println!("Notebook not found: {}, {:?}", req.uuid, state.notebooks);
+            HttpResponse::NotFound().json(json!({ "status": "not found" }))
+        }
+    }
+}
+
+#[derive(Debug)]
+struct AppState {
+    notebooks: Mutex<Vec<Notebook>>,
+}
+
+impl AppState {
+    fn add_notebook(&self, notebook: Notebook) {
+        self.notebooks.lock().unwrap().push(notebook);
+    }
+
+    fn find_notebook(&self, uuid: &str) -> Option<Notebook> {
+        let notebooks = self.notebooks.lock().unwrap();
+        notebooks.iter().find(|n| n.uuid == uuid).cloned()
+    }
+}
+
+impl Default for AppState {
+    fn default() -> Self {
+        Self {
+            notebooks: Mutex::new(Vec::new()),
+        }
+    }
 }
 
 #[actix_web::main]
@@ -51,7 +102,12 @@ async fn main() -> std::io::Result<()> {
             .allowed_header(http::header::CONTENT_TYPE)
             .max_age(3600);
 
-        App::new().wrap(cors).service(index).service(eval)
+        App::new()
+            .app_data(web::Data::new(AppState::default()))
+            .wrap(cors)
+            .service(index)
+            .service(eval)
+            .service(save)
     })
     .bind(("127.0.0.1", 8080))?
     .run()

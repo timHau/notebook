@@ -1,58 +1,66 @@
+use crate::cell::Cell;
 use nanoid::nanoid;
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct LanguageInfo {
+    name: String,
+    version: String,
+    file_extension: String,
+}
+
+impl Default for LanguageInfo {
+    fn default() -> Self {
+        Self {
+            name: String::from("python"),
+            version: String::from("3.10.6"),
+            file_extension: String::from(".py"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+struct NotebookMetadata {
+    format_version: String,
+}
+
+impl Default for NotebookMetadata {
+    fn default() -> Self {
+        Self {
+            format_version: String::from("0.0.1"),
+        }
+    }
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Notebook {
+    pub uuid: String,
+    language_info: LanguageInfo,
+    meta_data: NotebookMetadata,
     cells: Vec<Cell>,
+}
+
+impl From<&str> for Notebook {
+    fn from(path: &str) -> Self {
+        let json = std::fs::read_to_string(path).unwrap();
+        serde_json::from_str(&json).unwrap()
+    }
 }
 
 impl Notebook {
     pub fn new() -> Self {
         let first_cell = Cell::default();
         Self {
+            uuid: nanoid!(30),
+            meta_data: NotebookMetadata::default(),
+            language_info: LanguageInfo::default(),
             cells: vec![first_cell],
         }
     }
-}
 
-#[derive(Debug, Serialize)]
-pub struct Cell {
-    pub id: String,
-    pub cellType: CellType,
-    pub content: String,
-    pub output: String,
-    dependents: Vec<Dependent>,
-}
-
-impl Cell {
-    pub fn new(cellType: CellType, content: String) -> Self {
-        Self {
-            id: nanoid!(30),
-            cellType,
-            content,
-            output: String::new(),
-            dependents: Vec::new(),
-        }
+    pub fn save(&self, path: &str) -> Result<(), std::io::Error> {
+        let json = serde_json::to_string_pretty(&self)?;
+        std::fs::write(path, json)?;
+        Ok(())
     }
-}
-
-impl Default for Cell {
-    fn default() -> Self {
-        let content = String::from(
-            "# Welcome to the notebook! \n This is a markdown cell. You can write __markdown__ here and it will be rendered as **HTML**.",
-        );
-        Self::new(CellType::Markdown, content)
-    }
-}
-
-#[derive(Debug, Serialize)]
-pub enum CellType {
-    NonReactiveCode,
-    ReactiveCode,
-    Markdown,
-}
-
-#[derive(Debug, Serialize)]
-struct Dependent {
-    id: String,
 }
