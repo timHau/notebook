@@ -1,3 +1,11 @@
 .markdown h1 {
-    @apply text-2xl;
+    @apply text-2xl mb-2;
+}
+
+.markdown p {
+    @apply font-light;
+}
+
+.markdown p strong {
+    @apply font-bold;
 }

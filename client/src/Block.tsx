@@ -1,20 +1,43 @@
 import { Cell } from "./types/cell"
+import { useState } from "react"
 import ReactMarkdown from "react-markdown"
 import { CellTypes } from "./types/cellTypes"
+import MDEditor from "@uiw/react-md-editor"
 import './Block.css'
 
 interface CellProps {
     cell: Cell
 }
 
-function BlockCell(props: CellProps) {
-    const { cell } = props
-    if (cell.cellType === CellTypes.Markdown) {
+function MarkdownCell(props: CellProps) {
+    const [editing, setEditing] = useState(false)
+    const [content, setContent] = useState(props.cell.content)
+
+    if (editing) {
         return (
             <div>
-                <ReactMarkdown className="markdown" >{cell.content}</ReactMarkdown>
+                <MDEditor
+                    value={content}
+                    onChange={(v) => setContent(v || "")}
+                    preview="edit"
+                />
+                <div onClick={() => setEditing(!editing)}>Edit</div>
             </div>
         )
+    }
+
+    return (
+        <div>
+            <ReactMarkdown className="markdown" >{content}</ReactMarkdown>
+            <div onClick={() => setEditing(!editing)}>Edit</div>
+        </div>
+    )
+}
+
+
+function BlockCell(props: CellProps) {
+    if (props.cell.cellType === CellTypes.Markdown) {
+        return <MarkdownCell cell={props.cell} />
     } else {
         return (
             <div>
@@ -31,9 +54,11 @@ interface BlockProps {
 function Block(props: BlockProps) {
     return (
         <div>
-            <BlockCell cell={props.cell} />
-            <div>
-                <span>Add Markdown</span>
+            <div className="mb-1">
+                <BlockCell cell={props.cell} />
+            </div>
+            <div className="">
+                <span className="mr-3">Add Markdown</span>
                 <span>Add Code</span>
             </div>
         </div>

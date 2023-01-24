@@ -21,7 +21,7 @@ function Notebook() {
     }, [])
 
     return (
-        <div className=''>
+        <div className='mt-3'>
             {cells.map((cell: Cell) => <Block key={cell.id} cell={cell} />)}
         </div>
     )
