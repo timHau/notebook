@@ -2,98 +2,104 @@ mod cell;
 mod notebook;
 mod traits;
 
-use std::sync::Mutex;
-
 use actix_cors::Cors;
-use actix_web::{get, http, post, web, App, HttpResponse, HttpServer, Responder};
+use actix_web::{http, post, web, App, HttpResponse, HttpServer, Responder};
+use cell::CellType;
 use notebook::Notebook;
-use pyo3::prelude::*;
 use serde::Deserialize;
 use serde_json::json;
+use tracing_subscriber;
 
-#[derive(Deserialize)]
-struct EvalRequest {
-    code: String,
-}
+// #[derive(Deserialize)]
+// struct EvalRequest {
+//     code: String,
+// }
 
-#[post("/eval")]
-async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
-    let res: PyResult<()> = Python::with_gil(|py| {
-        let sys = py.import("sys")?;
-        let version = sys.getattr("version")?.extract::<String>()?;
+// #[post("/eval")]
+// async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
+//     let res: PyResult<()> = Python::with_gil(|py| {
+//         let sys = py.import("sys")?;
+//         let version = sys.getattr("version")?.extract::<String>()?;
 
-        println!("Python version {}", version);
+//         println!("Python version {}", version);
 
-        let fun: Py<PyAny> = PyModule::from_code(py, &req.code, "", "")?
-            .getattr("add")?
-            .into();
+//         let fun: Py<PyAny> = PyModule::from_code(py, &req.code, "", "")?
+//             .getattr("add")?
+//             .into();
 
-        let res = fun.call1(py, (1, 2))?;
-        println!("Result: {}", res);
+//         let res = fun.call1(py, (1, 2))?;
+//         println!("Result: {}", res);
 
-        Ok(())
-    });
+//         Ok(())
+//     });
 
-    match res {
-        Ok(_) => "Hello world!".to_string(),
-        Err(e) => e.to_string(),
-    }
-}
+//     match res {
+//         Ok(_) => "Hello world!".to_string(),
+//         Err(e) => e.to_string(),
+//     }
+// }
 
-#[get("/")]
-async fn index(state: web::Data<AppState>) -> impl Responder {
+#[post("/")]
+async fn index() -> impl Responder {
     let notebook = Notebook::new();
-    state.add_notebook(notebook.clone());
+    println!("Notebook created: {}", notebook.uuid);
     web::Json(notebook)
 }
 
 #[derive(Deserialize)]
+struct UpdateRequest {
+    cell_uuid: String,
+    content: String,
+    notebook: Notebook,
+}
+
+#[post("/update")]
+async fn update(req: web::Json<UpdateRequest>) -> impl Responder {
+    let mut notebook = req.notebook.clone();
+    match notebook.update_cell(&req.cell_uuid, &req.content) {
+        Ok(_) => HttpResponse::Ok().json(notebook),
+        Err(e) => {
+            HttpResponse::BadRequest().json(json!({ "status": "error", "message": e.to_string() }))
+        }
+    }
+}
+
+#[derive(Deserialize)]
+struct CellAdddRequest {
+    notebook: Notebook,
+    cell_type: CellType,
+}
+
+#[post("/add")]
+async fn add(req: web::Json<CellAdddRequest>) -> impl Responder {
+    let mut notebook = req.notebook.clone();
+    notebook.add_cell(req.cell_type.clone());
+    HttpResponse::Ok().json(notebook)
+}
+
+#[derive(Deserialize)]
 struct SaveRequest {
-    uuid: String,
+    notebook: Notebook,
     path: String,
 }
 
 #[post("/save")]
-async fn save(req: web::Json<SaveRequest>, state: web::Data<AppState>) -> impl Responder {
-    let notebook = state.find_notebook(&req.uuid);
-    match notebook {
-        Some(n) => {
-            n.save(&req.path).unwrap();
-            HttpResponse::Ok().json(json!({ "status": "ok" }))
-        }
-        None => {
-            println!("Notebook not found: {}, {:?}", req.uuid, state.notebooks);
-            HttpResponse::NotFound().json(json!({ "status": "not found" }))
-        }
-    }
-}
-
-#[derive(Debug)]
-struct AppState {
-    notebooks: Mutex<Vec<Notebook>>,
-}
-
-impl AppState {
-    fn add_notebook(&self, notebook: Notebook) {
-        self.notebooks.lock().unwrap().push(notebook);
-    }
-
-    fn find_notebook(&self, uuid: &str) -> Option<Notebook> {
-        let notebooks = self.notebooks.lock().unwrap();
-        notebooks.iter().find(|n| n.uuid == uuid).cloned()
-    }
-}
-
-impl Default for AppState {
-    fn default() -> Self {
-        Self {
-            notebooks: Mutex::new(Vec::new()),
+async fn save(req: web::Json<SaveRequest>) -> impl Responder {
+    let notebook = req.notebook.clone();
+    let path = req.path.clone();
+    println!("Saving notebook to {:?}", notebook);
+    match notebook.save(&path) {
+        Ok(_) => HttpResponse::Ok().json(json!({ "status": "ok" })),
+        Err(e) => {
+            HttpResponse::BadRequest().json(json!({ "status": "error", "message": e.to_string() }))
         }
     }
 }
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    tracing_subscriber::fmt::init();
+
     HttpServer::new(|| {
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
@@ -103,10 +109,10 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
 
         App::new()
-            .app_data(web::Data::new(AppState::default()))
             .wrap(cors)
             .service(index)
-            .service(eval)
+            .service(update)
+            .service(add)
             .service(save)
     })
     .bind(("127.0.0.1", 8080))?

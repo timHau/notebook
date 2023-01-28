@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Cell {
     metadata: CellMetadata,
-    pub id: String,
+    pub uuid: String,
     pub cell_type: CellType,
     pub content: String,
     pub output: String,
@@ -15,12 +15,16 @@ impl Cell {
     pub fn new(cell_type: CellType, content: String) -> Self {
         Self {
             metadata: CellMetadata::default(),
-            id: nanoid!(30),
+            uuid: nanoid!(30),
             cell_type,
             content,
             output: String::new(),
             dependents: Vec::new(),
         }
+    }
+
+    pub fn update_content(&mut self, content: &str) {
+        self.content = content.to_string();
     }
 }
 

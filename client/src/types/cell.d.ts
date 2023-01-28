@@ -1,5 +1,5 @@
 export type Cell = {
-    id: string;
+    uuid: string;
     cell_type: CellTypes;
     content: string;
 };

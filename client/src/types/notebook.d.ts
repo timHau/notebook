@@ -1,4 +1,8 @@
-export type Notebook = {
+export type CellDict = {
+    [key: string]: Cell;
+};
+
+export type NotebookData = {
     uuid: string;
     language_info: {
         name: string;
@@ -8,5 +12,5 @@ export type Notebook = {
     meta_data: {
         format_version: string;
     };
-    cells: Cell[];
+    cells: CellDict;
 }

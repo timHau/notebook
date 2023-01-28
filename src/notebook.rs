@@ -1,4 +1,4 @@
-use crate::cell::Cell;
+use crate::cell::{Cell, CellType};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 
@@ -56,6 +56,20 @@ impl Notebook {
             language_info: LanguageInfo::default(),
             cells: vec![first_cell],
         }
+    }
+
+    pub fn update_cell(&mut self, cell_uuid: &str, content: &str) -> Result<(), String> {
+        let cell = self.cells.iter_mut().find(|c| c.uuid == cell_uuid);
+        if cell.is_none() {
+            return Err(String::from("Cell not found"));
+        }
+        cell.unwrap().update_content(content);
+        Ok(())
+    }
+
+    pub fn add_cell(&mut self, cell_type: CellType) {
+        let cell = Cell::new(cell_type, String::new());
+        self.cells.push(cell);
     }
 
     pub fn save(&self, path: &str) -> Result<(), std::io::Error> {
