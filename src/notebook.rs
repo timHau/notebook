@@ -49,12 +49,15 @@ impl From<&str> for Notebook {
 
 impl Notebook {
     pub fn new() -> Self {
-        let first_cell = Cell::default();
+        let md_text  ="# Welcome to the Reactive Notebook \n This is a markdown cell. You can write markdown here. You can also write code in the code cell below";
+        let md_cell = Cell::new(CellType::Markdown, md_text.to_string());
+        let code_text = "print(\"Hello World\")";
+        let code_cell = Cell::new(CellType::ReactiveCode, code_text.to_string());
         Self {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
             language_info: LanguageInfo::default(),
-            cells: vec![first_cell],
+            cells: vec![md_cell, code_cell],
         }
     }
 

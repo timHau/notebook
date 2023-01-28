@@ -1,57 +1,13 @@
-import { useState, useRef, useEffect } from "react"
-import ReactMarkdown from "react-markdown"
 import { CellTypes } from "../types/cellTypes"
 import { Cell } from "../types/cell"
-import MDEditor from "@uiw/react-md-editor"
 import './Block.css'
+import MarkdownCell from "./MarkdownCell";
+import CodeCell from "./CodeCell";
 
-interface CellProps {
+export interface CellProps {
     cell: Cell
     updateCell: (uuid: string, content: string) => Promise<void>
     addCell(cellType: CellTypes): Promise<void>
-}
-
-function MarkdownCell(props: CellProps) {
-    const editorRef = useRef(null as any);
-    useEffect(() => {
-        function handleClickOutside(event: MouseEvent) {
-            if (editorRef.current && !editorRef.current.contains(event.target)) {
-                setEditing(false)
-            }
-        }
-        document.addEventListener("mousedown", handleClickOutside);
-        return () => {
-            document.removeEventListener("mousedown", handleClickOutside);
-        }
-    }, [editorRef]);
-
-    const [editing, setEditing] = useState(false)
-    const [content, setContent] = useState(props.cell.content)
-
-    const { cell, updateCell } = props;
-    if (editing) {
-        return (
-            <div ref={editorRef}>
-                <MDEditor
-                    value={content}
-                    onChange={(v) => setContent(v || "")}
-                    preview="edit"
-                    className="md-editor"
-                />
-                <div onClick={async () => {
-                    await updateCell(cell.uuid, content)
-                    setEditing(!editing)
-                }}>Edit</div>
-            </div>
-        )
-    }
-
-    return (
-        <div>
-            <ReactMarkdown className="markdown">{content}</ReactMarkdown>
-            <div onClick={() => setEditing(!editing)}>Edit</div>
-        </div>
-    )
 }
 
 
@@ -63,27 +19,12 @@ function Block(props: CellProps) {
     }
 
     return (
-        <div className="flex">
-            <div className="relative">
-                <div className="border-r-2 h-full border-gray-300 dark:border-slate-600 mr-2"></div>
-                <div className="absolute -left-1" onClick={handleNewCell}>+</div>
-            </div>
-            <div className="mb-1 w-full">
-                {
-                    (props.cell.cell_type === CellTypes.Markdown) ? (
-                        <MarkdownCell {...props} />) :
-                        (
-                            <div>
-                                <h3>Code Cell</h3>
-                            </div>
-                        )
-                }
-            </div>
-            {/* <div className="flex justify-around text-xs">
-                <span onClick={() => addCell(CellTypes.Markdown)} className="mr-3">Add Markdown</span>
-                <span className="mr-3">Add Non reactive Code</span>
-                <span>Add reactive Code</span>
-            </div> */}
+        <div className="mb-3 w-full">
+            {
+                (props.cell.cell_type === CellTypes.Markdown) ? (
+                    <MarkdownCell {...props} />) :
+                    (<CodeCell {...props} />)
+            }
         </div>
     )
 }

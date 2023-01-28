@@ -47,6 +47,7 @@ export default class Notebook {
 
     async updateCell(cellUuid: string, content: string) {
         const notebook = this.asNotebook();
+        console.log("Content: ", content);
         const data = await api.updateCell(notebook, cellUuid, content);
         this.cells = data.cells;
     }

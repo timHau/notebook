@@ -36,9 +36,6 @@ const NotebookView = observer((props: NotebookProps) => {
                     addCell={async () => console.log('add cell')}
                 />
             )}
-            <div onClick={handleSave} className="ml-3">
-                save
-            </div>
         </div>
     )
 });

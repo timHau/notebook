@@ -28,15 +28,6 @@ impl Cell {
     }
 }
 
-impl Default for Cell {
-    fn default() -> Self {
-        let content = String::from(
-            "# Welcome to the notebook! \n This is a markdown cell. You can write __markdown__ here and it will be rendered as **HTML**.",
-        );
-        Self::new(CellType::Markdown, content)
-    }
-}
-
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CellMetadata {
     pub collapsed: bool,
