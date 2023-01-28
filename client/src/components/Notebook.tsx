@@ -1,7 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import Block from './Block';
-import api from '../utils/api';
-import { CellTypes } from '../types/cellTypes';
 import { observer } from 'mobx-react-lite';
 import Notebook from '../core/notebook';
 
@@ -29,7 +27,7 @@ const NotebookView = observer((props: NotebookProps) => {
     }
 
     return (
-        <div className='mt-3'>
+        <div className='mt-3 w-1/2'>
             {Object.entries(notebook.cells).map(([key, cell]) =>
                 <Block
                     key={key}
@@ -38,7 +36,7 @@ const NotebookView = observer((props: NotebookProps) => {
                     addCell={async () => console.log('add cell')}
                 />
             )}
-            <div onClick={handleSave}>
+            <div onClick={handleSave} className="ml-3">
                 save
             </div>
         </div>
