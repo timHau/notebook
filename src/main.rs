@@ -4,40 +4,25 @@ mod traits;
 
 use actix_cors::Cors;
 use actix_web::{http, post, web, App, HttpResponse, HttpServer, Responder};
-use cell::CellType;
+use cell::{Cell, CellType};
 use notebook::Notebook;
+use rustpython_parser::{ast, parser};
 use serde::Deserialize;
 use serde_json::json;
 use tracing_subscriber;
 
-// #[derive(Deserialize)]
-// struct EvalRequest {
-//     code: String,
-// }
+#[derive(Deserialize)]
+struct EvalRequest {
+    cell: Cell,
+}
 
-// #[post("/eval")]
-// async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
-//     let res: PyResult<()> = Python::with_gil(|py| {
-//         let sys = py.import("sys")?;
-//         let version = sys.getattr("version")?.extract::<String>()?;
-
-//         println!("Python version {}", version);
-
-//         let fun: Py<PyAny> = PyModule::from_code(py, &req.code, "", "")?
-//             .getattr("add")?
-//             .into();
-
-//         let res = fun.call1(py, (1, 2))?;
-//         println!("Result: {}", res);
-
-//         Ok(())
-//     });
-
-//     match res {
-//         Ok(_) => "Hello world!".to_string(),
-//         Err(e) => e.to_string(),
-//     }
-// }
+#[post("/eval")]
+async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
+    let content = req.cell.content.clone();
+    let ast = parser::parse_program(&content, "<input>");
+    println!("ast: {:#?}", ast);
+    HttpResponse::Ok().json(json!({ "status": "ok" }))
+}
 
 #[post("/")]
 async fn index() -> impl Responder {
@@ -111,6 +96,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .wrap(cors)
             .service(index)
+            .service(eval)
             .service(update)
             .service(add)
             .service(save)

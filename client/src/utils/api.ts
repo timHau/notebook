@@ -1,3 +1,4 @@
+import { Cell } from "../types/cell";
 import { NotebookData } from "../types/notebook";
 
 class Api {
@@ -28,6 +29,18 @@ class Api {
         });
         return await response.json();
     }
+
+    async evalCell(cell: Cell) {
+        const response = await fetch(`${this.#hostname}/eval`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ cell }),
+        });
+        return await response.json();
+    }
+
 
     async saveNotebook(notebook: NotebookData, path: string) {
         const response = await fetch(`${this.#hostname}/save`, {

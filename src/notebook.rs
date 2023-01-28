@@ -51,7 +51,7 @@ impl Notebook {
     pub fn new() -> Self {
         let md_text  ="# Welcome to the Reactive Notebook \n This is a markdown cell. You can write markdown here. You can also write code in the code cell below";
         let md_cell = Cell::new(CellType::Markdown, md_text.to_string());
-        let code_text = "print(\"Hello World\")";
+        let code_text = "print(\"Hello World\") \n\ndef add(a, b): \n\treturn a + b";
         let code_cell = Cell::new(CellType::ReactiveCode, code_text.to_string());
         Self {
             uuid: nanoid!(30),

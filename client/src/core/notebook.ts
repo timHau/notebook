@@ -1,4 +1,4 @@
-import { makeObservable, observable, action } from "mobx";
+import { makeAutoObservable, observable, action } from "mobx";
 import { Cell } from "../types/cell";
 import { CellDict, NotebookData } from "../types/notebook";
 import api from "../utils/api";
@@ -16,12 +16,7 @@ export default class Notebook {
     } = { name: "", version: "", file_extension: "" };
 
     constructor() {
-        makeObservable(this, {
-            uuid: observable,
-            cells: observable,
-            addCell: action,
-            updateCell: action,
-        });
+        makeAutoObservable(this);
     }
 
     async init() {
@@ -50,6 +45,10 @@ export default class Notebook {
         console.log("Content: ", content);
         const data = await api.updateCell(notebook, cellUuid, content);
         this.cells = data.cells;
+    }
+
+    async evalCell(cell: Cell) {
+        await api.evalCell(cell);
     }
 
     async save(path: string) {

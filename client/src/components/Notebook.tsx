@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import Block from './Block';
 import { observer } from 'mobx-react-lite';
 import Notebook from '../core/notebook';
+import { Cell } from '../types/cell';
 
 interface NotebookProps {
     notebook: Notebook
@@ -22,6 +23,10 @@ const NotebookView = observer((props: NotebookProps) => {
         notebook.updateCell(cellUuid, content);
     }
 
+    async function handleEval(cell: Cell) {
+        notebook.evalCell(cell);
+    }
+
     async function handleSave() {
         notebook.save("../tmp_notebooks/test_2.json");
     }
@@ -33,9 +38,13 @@ const NotebookView = observer((props: NotebookProps) => {
                     key={key}
                     cell={cell}
                     updateCell={handleCellUpdate}
+                    evalCell={handleEval}
                     addCell={async () => console.log('add cell')}
                 />
             )}
+            <div onClick={handleSave}>
+                Save
+            </div>
         </div>
     )
 });

@@ -7,6 +7,7 @@ import CodeCell from "./CodeCell";
 export interface CellProps {
     cell: Cell
     updateCell: (uuid: string, content: string) => Promise<void>
+    evalCell: (cell: Cell) => Promise<void>
     addCell(cellType: CellTypes): Promise<void>
 }
 
