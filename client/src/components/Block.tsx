@@ -1,6 +1,5 @@
 import { CellTypes } from "../types/cellTypes"
 import { Cell } from "../types/cell"
-import './Block.css'
 import MarkdownCell from "./MarkdownCell";
 import CodeCell from "./CodeCell";
 
@@ -13,16 +12,16 @@ export interface CellProps {
 
 
 function Block(props: CellProps) {
-    const { addCell } = props;
+    const { addCell, cell } = props;
 
     function handleNewCell() {
         console.log("add cell")
     }
 
     return (
-        <div className="mb-3 w-full">
+        <div className="">
             {
-                (props.cell.cell_type === CellTypes.Markdown) ? (
+                (cell.cell_type === CellTypes.Markdown) ? (
                     <MarkdownCell {...props} />) :
                     (<CodeCell {...props} />)
             }

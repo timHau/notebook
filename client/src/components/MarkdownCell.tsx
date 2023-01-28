@@ -1,7 +1,10 @@
 import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-md-editor/markdown-editor.css";
+import "@uiw/react-markdown-preview/markdown.css";
 import { useEffect, useRef, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import { CellProps } from "./Block";
+import './Block.css'
 
 
 export default function MarkdownCell(props: CellProps) {
@@ -35,12 +38,12 @@ export default function MarkdownCell(props: CellProps) {
                 />
             </div>
         )
+    } else {
+        return (
+            <div>
+                <ReactMarkdown className="markdown">{content}</ReactMarkdown>
+                <div onClick={() => setEditing(!editing)}>Edit</div>
+            </div>
+        )
     }
-
-    return (
-        <div>
-            <ReactMarkdown className="markdown">{content}</ReactMarkdown>
-            <div onClick={() => setEditing(!editing)}>Edit</div>
-        </div>
-    )
 }

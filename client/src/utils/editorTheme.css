@@ -5,7 +5,7 @@
  * Ported for PrismJS by Zane Hitchcoxc (@zwhitchcox) and Gabriel Ramos (@gabrieluizramos)
  */
 
-code[class*="language-"],
+/* code[class*="language-"],
 pre[class*="language-"] {
     color: #f8f8f2;
     background: none;
@@ -23,15 +23,15 @@ pre[class*="language-"] {
     -moz-hyphens: none;
     -ms-hyphens: none;
     hyphens: none;
-}
+} */
 
 /* Code blocks */
-pre[class*="language-"] {
+/* pre[class*="language-"] {
     padding: 1em;
     margin: .5em 0;
     overflow: auto;
     border-radius: 0.3em;
-}
+} */
 
 :not(pre)>code[class*="language-"],
 pre[class*="language-"] {

@@ -45,6 +45,7 @@ export default class Notebook {
         console.log("Content: ", content);
         const data = await api.updateCell(notebook, cellUuid, content);
         this.cells = data.cells;
+        await api.saveNotebook(notebook, "../tmp_notebooks/test_tmp.json");
     }
 
     async evalCell(cell: Cell) {

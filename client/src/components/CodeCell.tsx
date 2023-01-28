@@ -15,17 +15,22 @@ export default function CodeCell(props: CellProps) {
     }
 
     return (
-        <Editor
-            value={cell.content}
-            onValueChange={(v) => updateCell(cell.uuid, v)}
-            onKeyDown={handleKeyDown}
-            highlight={(code) => highlight(code, languages.python, 'python')}
-            padding={10}
-            style={{
-                fontFamily: '"Fira code", "Fira Mono", monospace',
-                backgroundColor: '#282c34',
-                fontSize: 12,
-            }}
-        />
+        <div>
+            <Editor
+                value={cell.content}
+                onValueChange={(v) => updateCell(cell.uuid, v)}
+                onKeyDown={handleKeyDown}
+                highlight={(code) => highlight(code, languages.python, 'python')}
+                padding={10}
+                style={{
+                    fontFamily: '"Fira code", "Fira Mono", monospace',
+                    backgroundColor: '#282c34',
+                    fontSize: 12,
+                }}
+            />
+            <div className="text-gray-500">
+                Output
+            </div>
+        </div>
     )
 }

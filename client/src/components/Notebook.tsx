@@ -32,7 +32,7 @@ const NotebookView = observer((props: NotebookProps) => {
     }
 
     return (
-        <div className='mt-3 w-1/2'>
+        <div className='mt-3'>
             {Object.entries(notebook.cells).map(([key, cell]) =>
                 <Block
                     key={key}
