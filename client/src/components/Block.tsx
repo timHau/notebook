@@ -8,7 +8,6 @@ import './Block.css'
 
 interface CellProps {
     cell: Cell
-    notebook: NotebookData
     updateCell: (uuid: string, content: string) => Promise<void>
     addCell(cellType: CellTypes): Promise<void>
 }
@@ -17,7 +16,7 @@ function MarkdownCell(props: CellProps) {
     const [editing, setEditing] = useState(false)
     const [content, setContent] = useState(props.cell.content)
 
-    const { cell, notebook, updateCell } = props;
+    const { cell, updateCell } = props;
     if (editing) {
         return (
             <div>

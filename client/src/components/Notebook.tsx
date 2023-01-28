@@ -20,15 +20,13 @@ const NotebookView = observer((props: NotebookProps) => {
         return <div>Loading...</div>
     }
 
-    // async function handleCellUpdate(notebook: NotebookData, uuid: string, content: string) {
-    //     const data = await api.updateCell(notebook, uuid, content);
-    //     setNotebook(data);
-    // }
+    async function handleCellUpdate(cellUuid: string, content: string) {
+        notebook.updateCell(cellUuid, content);
+    }
 
-    // async function handleCellAdd(cellType: CellTypes) {
-    //     const data = await api.addCell(notebook, cellType);
-    //     setNotebook(data);
-    // }
+    async function handleSave() {
+        notebook.save("../tmp_notebooks/test_2.json");
+    }
 
     return (
         <div className='mt-3'>
@@ -36,14 +34,13 @@ const NotebookView = observer((props: NotebookProps) => {
                 <Block
                     key={key}
                     cell={cell}
-                    notebook={notebook}
-                    updateCell={async () => console.log('update cell')}
+                    updateCell={handleCellUpdate}
                     addCell={async () => console.log('add cell')}
                 />
             )}
-            {/* <div onClick={handleSave}>
+            <div onClick={handleSave}>
                 save
-            </div> */}
+            </div>
         </div>
     )
 });

@@ -20,6 +20,7 @@ export default class Notebook {
             uuid: observable,
             cells: observable,
             addCell: action,
+            updateCell: action,
         });
     }
 
@@ -35,14 +36,23 @@ export default class Notebook {
         this.cells[cell.uuid] = cell;
     }
 
-    async save(path: string) {
-        const notebook = {
+    asNotebook() {
+        return {
             uuid: this.uuid,
             cells: this.cells,
             meta_data: this.meta_data,
             language_info: this.language_info,
         } as NotebookData;
+    }
 
+    async updateCell(cellUuid: string, content: string) {
+        const notebook = this.asNotebook();
+        const data = await api.updateCell(notebook, cellUuid, content);
+        this.cells = data.cells;
+    }
+
+    async save(path: string) {
+        const notebook = this.asNotebook();
         const data = await api.saveNotebook(notebook, path);
         console.log(data);
     }
