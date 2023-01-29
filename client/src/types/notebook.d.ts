@@ -2,6 +2,10 @@ export type CellDict = {
     [key: string]: Cell;
 };
 
+export type CellTopology = {
+    [key: string]: string[];
+};
+
 export type NotebookData = {
     uuid: string;
     language_info: {
@@ -13,4 +17,5 @@ export type NotebookData = {
         format_version: string;
     };
     cells: CellDict;
+    topology: CellTopology;
 }

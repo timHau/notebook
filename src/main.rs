@@ -6,21 +6,21 @@ use actix_cors::Cors;
 use actix_web::{http, post, web, App, HttpResponse, HttpServer, Responder};
 use cell::{Cell, CellType};
 use notebook::Notebook;
-use rustpython_parser::{ast, parser};
 use serde::Deserialize;
 use serde_json::json;
 use tracing_subscriber;
 
 #[derive(Deserialize)]
 struct EvalRequest {
-    cell: Cell,
+    notebook: Notebook,
+    cell_uuid: String,
 }
 
 #[post("/eval")]
 async fn eval(req: web::Json<EvalRequest>) -> impl Responder {
-    let content = req.cell.content.clone();
-    let ast = parser::parse_program(&content, "<input>");
-    println!("ast: {:#?}", ast);
+    let mut notebook = req.notebook.clone();
+    let cell_uuid = req.cell_uuid.clone();
+    notebook.eval(&cell_uuid);
     HttpResponse::Ok().json(json!({ "status": "ok" }))
 }
 
@@ -40,13 +40,14 @@ struct UpdateRequest {
 
 #[post("/update")]
 async fn update(req: web::Json<UpdateRequest>) -> impl Responder {
-    let mut notebook = req.notebook.clone();
-    match notebook.update_cell(&req.cell_uuid, &req.content) {
-        Ok(_) => HttpResponse::Ok().json(notebook),
-        Err(e) => {
-            HttpResponse::BadRequest().json(json!({ "status": "error", "message": e.to_string() }))
-        }
-    }
+    let notebook = req.notebook.clone();
+    // match notebook.update_cell(&req.cell_uuid, &req.content) {
+    //     Ok(_) => HttpResponse::Ok().json(notebook),
+    //     Err(e) => {
+    //         HttpResponse::BadRequest().json(json!({ "status": "error", "message": e.to_string() }))
+    //     }
+    // }
+    HttpResponse::Ok().json(notebook)
 }
 
 #[derive(Deserialize)]
@@ -58,7 +59,7 @@ struct CellAdddRequest {
 #[post("/add")]
 async fn add(req: web::Json<CellAdddRequest>) -> impl Responder {
     let mut notebook = req.notebook.clone();
-    notebook.add_cell(req.cell_type.clone());
+    // notebook.add_cell(req.cell_type.clone());
     HttpResponse::Ok().json(notebook)
 }
 

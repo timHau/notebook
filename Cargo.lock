@@ -846,6 +846,7 @@ dependencies = [
  "actix-cors",
  "actix-web",
  "nanoid",
+ "num-bigint",
  "rustpython-parser",
  "serde",
  "serde_json",

@@ -1,6 +1,6 @@
 import { makeAutoObservable, observable, action } from "mobx";
 import { Cell } from "../types/cell";
-import { CellDict, NotebookData } from "../types/notebook";
+import { CellDict, CellTopology, NotebookData } from "../types/notebook";
 import api from "../utils/api";
 
 export default class Notebook {
@@ -14,6 +14,7 @@ export default class Notebook {
         version: string;
         file_extension: string;
     } = { name: "", version: "", file_extension: "" };
+    topology: CellTopology = {};
 
     constructor() {
         makeAutoObservable(this);
@@ -25,6 +26,7 @@ export default class Notebook {
         this.cells = data.cells;
         this.meta_data = data.meta_data;
         this.language_info = data.language_info;
+        this.topology = data.topology;
     }
 
     addCell(cell: Cell) {
@@ -37,6 +39,7 @@ export default class Notebook {
             cells: this.cells,
             meta_data: this.meta_data,
             language_info: this.language_info,
+            topology: this.topology,
         } as NotebookData;
     }
 
@@ -49,7 +52,7 @@ export default class Notebook {
     }
 
     async evalCell(cell: Cell) {
-        await api.evalCell(cell);
+        await api.evalCell(this.asNotebook(), cell.uuid);
     }
 
     async save(path: string) {

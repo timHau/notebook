@@ -15,7 +15,7 @@ export default function CodeCell(props: CellProps) {
     }
 
     return (
-        <div>
+        <div className="mb-5">
             <Editor
                 value={cell.content}
                 onValueChange={(v) => updateCell(cell.uuid, v)}
@@ -28,6 +28,7 @@ export default function CodeCell(props: CellProps) {
                     fontSize: 12,
                 }}
             />
+            <div onClick={async () => await evalCell(cell)}>Eval</div>
             <div className="text-gray-500">
                 Output
             </div>

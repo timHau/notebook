@@ -30,13 +30,13 @@ class Api {
         return await response.json();
     }
 
-    async evalCell(cell: Cell) {
+    async evalCell(notebook: NotebookData, cellUuid: string) {
         const response = await fetch(`${this.#hostname}/eval`, {
             method: "POST",
             headers: {
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({ cell }),
+            body: JSON.stringify({ cell_uuid: cellUuid, notebook }),
         });
         return await response.json();
     }
