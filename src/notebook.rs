@@ -46,24 +46,47 @@ pub struct Notebook {
 
 impl Notebook {
     pub fn new() -> Self {
-        let code_cell = Cell::new(CellType::ReactiveCode, String::from("a = 1"), 0);
-        let cells = HashMap::from([(code_cell.uuid.clone(), code_cell.clone())]);
+        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b"), 0);
+        let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = 1"), 1);
+
+        let cells = HashMap::from([
+            (code_cell_1.uuid.clone(), code_cell_1.clone()),
+            (code_cell_2.uuid.clone(), code_cell_2.clone()),
+        ]);
+
+        let topology = HashMap::from([
+            (code_cell_1.uuid.clone(), vec![code_cell_2.uuid.clone()]),
+            (code_cell_2.uuid.clone(), vec![]),
+        ]);
+
         Self {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
             language_info: LanguageInfo::default(),
-            topology: HashMap::new(),
+            topology,
             cells,
         }
     }
 
     pub fn eval(&mut self, cell_uuid: &str) {
         let cell = self.cells.get_mut(cell_uuid);
-        if let Some(cell) = cell {
-            cell.eval();
-        } else {
+        if cell.is_none() {
             println!("Cell not found");
-            println!("cell_mapping: {:#?}", self.cells);
+            return;
+        }
+        let cell = cell.unwrap();
+        cell.eval();
+
+        // TODO update topology if neccessary
+
+        let dependents = self.topology.get(cell_uuid);
+        if dependents.is_none() {
+            return;
+        }
+        let dependents = dependents.unwrap();
+
+        for dependent in dependents.iter() {
+            println!("depending on {}", dependent);
         }
     }
 

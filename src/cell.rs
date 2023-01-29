@@ -24,8 +24,6 @@ pub struct Cell {
     pub uuid: String,
     pub cell_type: CellType,
     pub content: String,
-    pub output: String,
-    dependents: Vec<Dependent>,
     scope: HashMap<String, VarValue>,
     pos: usize,
 }
@@ -37,8 +35,6 @@ impl Cell {
             uuid: nanoid!(30),
             cell_type,
             content,
-            output: String::new(),
-            dependents: Vec::new(),
             scope: HashMap::new(),
             pos,
         }
