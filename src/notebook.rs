@@ -55,12 +55,12 @@ impl Notebook {
             (code_cell_2.uuid.clone(), code_cell_2.clone()),
         ]);
 
-        let trees = HashMap::from([
+        let adj_list = HashMap::from([
             (code_cell_1.uuid.clone(), vec![code_cell_2.uuid.clone()]),
             (code_cell_2.uuid.clone(), vec![]),
         ]);
 
-        let topology = Topology { trees, cells };
+        let topology = Topology { adj_list, cells };
 
         Self {
             uuid: nanoid!(30),
