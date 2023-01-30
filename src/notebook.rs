@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use crate::cell::{Cell, CellType};
+use crate::{
+    cell::{Cell, CellType},
+    topology::Topology,
+};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 
@@ -14,9 +17,9 @@ struct LanguageInfo {
 impl Default for LanguageInfo {
     fn default() -> Self {
         Self {
-            name: String::from("python"),
-            version: String::from("3.10.6"),
-            file_extension: String::from(".py"),
+            name: String::from(""),
+            version: String::from(""),
+            file_extension: String::from(""),
         }
     }
 }
@@ -39,9 +42,7 @@ pub struct Notebook {
     pub uuid: String,
     language_info: LanguageInfo,
     meta_data: NotebookMetadata,
-
-    topology: HashMap<String, Vec<String>>,
-    cells: HashMap<String, Cell>,
+    topology: Topology,
 }
 
 impl Notebook {
@@ -54,40 +55,23 @@ impl Notebook {
             (code_cell_2.uuid.clone(), code_cell_2.clone()),
         ]);
 
-        let topology = HashMap::from([
+        let trees = HashMap::from([
             (code_cell_1.uuid.clone(), vec![code_cell_2.uuid.clone()]),
             (code_cell_2.uuid.clone(), vec![]),
         ]);
+
+        let topology = Topology { trees, cells };
 
         Self {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
             language_info: LanguageInfo::default(),
             topology,
-            cells,
         }
     }
 
     pub fn eval(&mut self, cell_uuid: &str) {
-        let cell = self.cells.get_mut(cell_uuid);
-        if cell.is_none() {
-            println!("Cell not found");
-            return;
-        }
-        let cell = cell.unwrap();
-        cell.eval();
-
-        // TODO update topology if neccessary
-
-        let dependents = self.topology.get(cell_uuid);
-        if dependents.is_none() {
-            return;
-        }
-        let dependents = dependents.unwrap();
-
-        for dependent in dependents.iter() {
-            println!("depending on {}", dependent);
-        }
+        self.topology.eval(cell_uuid)
     }
 
     pub fn save(&self, path: &str) -> Result<(), std::io::Error> {

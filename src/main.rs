@@ -1,5 +1,6 @@
 mod cell;
 mod notebook;
+mod topology;
 mod traits;
 
 use actix_cors::Cors;
