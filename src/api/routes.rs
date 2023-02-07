@@ -7,13 +7,13 @@ use tracing::info;
 #[get("/")]
 pub async fn index(state: web::Data<State>) -> impl Responder {
     let mut open_notebooks = state.open_notebooks.lock().unwrap();
-    if !open_notebooks.is_empty() {
-        let notebook = open_notebooks
-            .get(&open_notebooks.keys().next().unwrap().clone())
-            .unwrap();
-        info!("{:#?}", notebook);
-        return HttpResponse::Ok().json(notebook);
-    }
+    // if !open_notebooks.is_empty() {
+    //     let notebook = open_notebooks
+    //         .get(&open_notebooks.keys().next().unwrap().clone())
+    //         .unwrap();
+    //     info!("{:#?}", notebook);
+    //     return HttpResponse::Ok().json(notebook);
+    // }
 
     let notebook = Notebook::new();
     info!("{:#?}", notebook);

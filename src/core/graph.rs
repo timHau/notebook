@@ -22,29 +22,23 @@ impl Graph {
         parent_uuid: &str,
         child_uuids: Option<&Vec<String>>,
     ) -> Result<(), Box<dyn error::Error>> {
-        let deps = match self.adj_list.get(parent_uuid) {
-            Some(parent_deps) => parent_deps,
-            None => {
-                self.adj_list.insert(parent_uuid.to_string(), vec![]);
-                return Ok(());
-            }
-        };
+        let mut next_adj_list = self.adj_list.clone();
 
-        // add child id to parent's dependencies
-        let mut adj_list = self.adj_list.clone();
+        let deps = self
+            .adj_list
+            .entry(parent_uuid.to_string())
+            .or_insert(vec![]);
+
         let mut next_deps = deps.clone();
-        match child_uuids {
-            Some(child_uuids) => {
-                next_deps.extend(child_uuids.clone());
-            }
-            None => {}
+        if child_uuids.is_some() {
+            next_deps.extend(child_uuids.unwrap().clone());
         }
-        adj_list.insert(parent_uuid.to_string(), next_deps);
-        if Self::has_cycle(&adj_list) {
+        next_adj_list.insert(parent_uuid.to_string(), next_deps);
+        if Self::has_cycle(&next_adj_list) {
             return Err("Cycle detected".into());
         }
 
-        self.adj_list = adj_list;
+        self.adj_list = next_adj_list;
 
         Ok(())
     }

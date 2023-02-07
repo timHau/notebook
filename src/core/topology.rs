@@ -1,4 +1,4 @@
-use crate::core::{cell::Cell, graph::Graph, parser::Parser};
+use crate::core::{cell::Cell, graph::Graph};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error};
 
@@ -17,7 +17,7 @@ impl Topology {
     }
 
     pub fn eval(&mut self, cell: &Cell) -> Result<(), Box<dyn error::Error>> {
-        let update_topology = Parser::parse(cell)?;
+        cell.parse()?;
 
         // let dependents = match self.adj_list.get(cell.uuid) {
         //     Some(dependents) => dependents,
