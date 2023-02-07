@@ -7,7 +7,9 @@ function App() {
     async function fetchNotebook() {
       const notebook = await Api.getNotebook();
 
-      const testCell = Object.values(notebook.topology.cells)[0] as any;
+      const testCell = Object.values(notebook.topology.cells).filter((c: any) => {
+        return c.pos === 0;
+      })[0] as any;
       await Api.evalCell(notebook.uuid, testCell.uuid);
     }
     fetchNotebook();

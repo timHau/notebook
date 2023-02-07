@@ -1,4 +1,5 @@
 pub mod cell;
+mod graph;
 pub mod notebook;
 mod parser;
-pub mod topology;
+mod topology;
