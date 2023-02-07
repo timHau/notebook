@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::{
+use crate::core::{
     cell::{Cell, CellType},
     topology::Topology,
 };
@@ -47,7 +47,7 @@ pub struct Notebook {
 
 impl Notebook {
     pub fn new() -> Self {
-        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b"), 0);
+        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b\nc = 1"), 0);
         let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = 1"), 1);
 
         let cells = HashMap::from([
@@ -70,14 +70,12 @@ impl Notebook {
         }
     }
 
-    pub fn eval(&mut self, cell_uuid: &str) {
-        self.topology.eval(cell_uuid)
+    pub fn has_cell(&self, cell_uuid: &str) -> bool {
+        self.topology.has_cell(cell_uuid)
     }
 
-    pub fn save(&self, path: &str) -> Result<(), std::io::Error> {
-        // let json = serde_json::to_string_pretty(&self)?;
-        // std::fs::write(path, json)?;
-        Ok(())
+    pub fn eval(&mut self, cell_uuid: &str) {
+        self.topology.eval(cell_uuid)
     }
 }
 

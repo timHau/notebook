@@ -1,6 +1,6 @@
-use crate::cell::Cell;
+use crate::core::{cell::Cell, parser::Parser};
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::{collections::HashMap, error};
 
 #[derive(Debug, Serialize, Deserialize, Clone, Default)]
 pub struct Topology {
@@ -10,13 +10,12 @@ pub struct Topology {
 
 impl Topology {
     pub fn eval(&mut self, cell_uuid: &str) {
-        let cell = match self.cells.get_mut(cell_uuid) {
+        let cell = match self.cells.get(cell_uuid) {
             Some(cell) => cell,
             None => return,
         };
-        cell.eval();
 
-        // TODO update topology if neccessary
+        Parser::parse(cell);
 
         let dependents = match self.adj_list.get(cell_uuid) {
             Some(dependents) => dependents,
@@ -28,10 +27,14 @@ impl Topology {
         }
     }
 
-    pub fn add_to_tree(&mut self, parent_uuid: &str, child_uuid: &str) {
+    pub fn add_to_tree(
+        &mut self,
+        parent_uuid: &str,
+        child_uuid: &str,
+    ) -> Result<(), Box<dyn error::Error>> {
         let parent_deps = match self.adj_list.get(parent_uuid) {
             Some(parent_deps) => parent_deps,
-            None => return,
+            None => return Err("Parent not found".into()),
         };
 
         // add child id to parent's dependencies
@@ -40,10 +43,12 @@ impl Topology {
         next_parent_deps.push(child_uuid.to_string());
         next_adj_list.insert(parent_uuid.to_string(), next_parent_deps);
         if Self::has_cycle(&next_adj_list) {
-            return println!("Cycle detected");
+            return Err("Cycle detected".into());
         }
 
         self.adj_list = next_adj_list;
+
+        Ok(())
     }
 
     pub fn has_cycle(adj_list: &HashMap<String, Vec<String>>) -> bool {
@@ -96,6 +101,10 @@ impl Topology {
         rec_stack.remove(node);
 
         false
+    }
+
+    pub fn has_cell(&self, cell_uuid: &str) -> bool {
+        self.cells.contains_key(cell_uuid)
     }
 }
 
