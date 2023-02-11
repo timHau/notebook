@@ -10,14 +10,19 @@ use actix_web::{
 };
 use api::routes::notebook_routes;
 use api::state::State;
+use dotenv::dotenv;
 use tracing::info;
 use tracing_subscriber;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
     tracing_subscriber::fmt::init();
+    dotenv().ok();
 
-    let port = 8080;
+    let port = std::env::var("PORT")
+        .unwrap_or_else(|_| "8080".to_string())
+        .parse::<u16>()
+        .expect("PORT must be a number");
 
     info!("Starting server on port {}", port);
     HttpServer::new(|| {

@@ -1,4 +1,4 @@
-use crate::{api::state::State, core::notebook::Notebook};
+use crate::{api::state::State, core::kernel::Kernel, core::notebook::Notebook};
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::Deserialize;
 use serde_json::json;
@@ -7,15 +7,17 @@ use tracing::info;
 #[get("/")]
 pub async fn index(state: web::Data<State>) -> impl Responder {
     let mut open_notebooks = state.open_notebooks.lock().unwrap();
-    // if !open_notebooks.is_empty() {
-    //     let notebook = open_notebooks
-    //         .get(&open_notebooks.keys().next().unwrap().clone())
-    //         .unwrap();
-    //     info!("{:#?}", notebook);
-    //     return HttpResponse::Ok().json(notebook);
-    // }
+    if !open_notebooks.is_empty() {
+        let notebook = open_notebooks
+            .get(&open_notebooks.keys().next().unwrap().clone())
+            .unwrap();
+        info!("{:#?}", notebook);
+        return HttpResponse::Ok().json(notebook);
+    }
 
-    let notebook = Notebook::new();
+    let kernel = state.kernel.lock().unwrap();
+    let version = kernel.version.clone();
+    let notebook = Notebook::new(version);
     info!("{:#?}", notebook);
     open_notebooks.insert(notebook.uuid.clone(), notebook.clone());
 

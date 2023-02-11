@@ -1,28 +1,16 @@
-use std::{collections::HashMap, error};
-
-use super::graph::Graph;
 use crate::core::{
     cell::{Cell, CellType},
     topology::Topology,
 };
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use std::error;
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
+#[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
     name: String,
     version: String,
     file_extension: String,
-}
-
-impl Default for LanguageInfo {
-    fn default() -> Self {
-        Self {
-            name: String::from(""),
-            version: String::from(""),
-            file_extension: String::from(""),
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -47,7 +35,7 @@ pub struct Notebook {
 }
 
 impl Notebook {
-    pub fn new() -> Self {
+    pub fn new(version: String) -> Self {
         let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b\nc = 1"), 0);
         let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = 1"), 1);
 
@@ -60,7 +48,11 @@ impl Notebook {
         Self {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
-            language_info: LanguageInfo::default(),
+            language_info: LanguageInfo {
+                name: String::from("python"),
+                version,
+                file_extension: String::from(".py"),
+            },
             topology,
         }
     }
