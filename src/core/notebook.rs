@@ -1,3 +1,4 @@
+use super::kernel::Kernel;
 use crate::core::{
     cell::{Cell, CellType},
     topology::Topology,
@@ -26,16 +27,19 @@ impl Default for NotebookMetadata {
     }
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Notebook {
     pub uuid: String,
     language_info: LanguageInfo,
     meta_data: NotebookMetadata,
     topology: Topology,
+
+    #[serde(skip)]
+    kernel: Kernel,
 }
 
 impl Notebook {
-    pub fn new(version: String) -> Self {
+    pub fn new(kernel: Kernel) -> Self {
         let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b\nc = 1"), 0);
         let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = 1"), 1);
 
@@ -45,9 +49,11 @@ impl Notebook {
             .unwrap();
         topology.add_cell(code_cell_2, None).unwrap();
 
+        let version = kernel.version.clone();
         Self {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
+            kernel,
             language_info: LanguageInfo {
                 name: String::from("python"),
                 version,
@@ -57,12 +63,12 @@ impl Notebook {
         }
     }
 
-    pub fn get_cell(&self, cell_uuid: &str) -> Option<&Cell> {
-        self.topology.get_cell(cell_uuid)
+    pub fn get_cell_mut(&mut self, cell_uuid: &str) -> Option<&mut Cell> {
+        self.topology.get_cell_mut(cell_uuid)
     }
 
-    pub fn eval(&mut self, cell: &Cell) -> Result<(), Box<dyn error::Error>> {
-        self.topology.eval(cell)
+    pub fn eval(&mut self, cell: &mut Cell) -> Result<(), Box<dyn error::Error>> {
+        self.topology.eval(cell, &mut self.kernel)
     }
 }
 

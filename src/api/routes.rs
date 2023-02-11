@@ -1,4 +1,4 @@
-use crate::{api::state::State, core::kernel::Kernel, core::notebook::Notebook};
+use crate::{api::state::State, core::notebook::Notebook};
 use actix_web::{get, post, web, HttpResponse, Responder};
 use serde::Deserialize;
 use serde_json::json;
@@ -16,8 +16,7 @@ pub async fn index(state: web::Data<State>) -> impl Responder {
     }
 
     let kernel = state.kernel.lock().unwrap();
-    let version = kernel.version.clone();
-    let notebook = Notebook::new(version);
+    let notebook = Notebook::new(kernel.clone());
     info!("{:#?}", notebook);
     open_notebooks.insert(notebook.uuid.clone(), notebook.clone());
 
@@ -44,13 +43,13 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
     };
 
-    let cell = match notebook.get_cell(&cell_uuid) {
+    let mut nb = notebook.clone();
+    let cell = match nb.get_cell_mut(&cell_uuid) {
         Some(cell) => cell,
         None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
     };
 
-    let mut notebook = notebook.clone();
-    notebook.eval(&cell);
+    notebook.eval(cell);
 
     HttpResponse::Ok().json(json!({ "status": "ok" }))
 }

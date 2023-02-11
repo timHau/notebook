@@ -1,8 +1,9 @@
+use super::kernel::Kernel;
 use crate::core::{cell::Cell, graph::Graph};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error};
 
-#[derive(Debug, Serialize, Deserialize, Clone, Default)]
+#[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
     pub cells: HashMap<String, Cell>,
     pub graph: Graph,
@@ -16,9 +17,13 @@ impl Topology {
         }
     }
 
-    pub fn eval(&mut self, cell: &Cell) -> Result<(), Box<dyn error::Error>> {
+    pub fn eval(
+        &mut self,
+        cell: &mut Cell,
+        kernel: &mut Kernel,
+    ) -> Result<(), Box<dyn error::Error>> {
         cell.parse()?;
-
+        cell.eval(kernel);
         // let dependents = match self.adj_list.get(cell.uuid) {
         //     Some(dependents) => dependents,
         //     None => return,
@@ -40,7 +45,7 @@ impl Topology {
         Ok(())
     }
 
-    pub fn get_cell(&self, uuid: &str) -> Option<&Cell> {
-        self.cells.get(uuid)
+    pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
+        self.cells.get_mut(uuid)
     }
 }

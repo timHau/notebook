@@ -1,4 +1,6 @@
+use super::kernel::Kernel;
 use nanoid::nanoid;
+use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
     ast::{ExprKind, Located, StmtKind},
     error::ParseError,
@@ -14,17 +16,25 @@ pub struct Cell {
     pub cell_type: CellType,
     pub content: String,
     pub pos: usize,
+
+    #[serde(skip)]
+    locals: Option<Py<PyDict>>,
 }
 
 impl Cell {
     pub fn new(cell_type: CellType, content: String, pos: usize) -> Self {
         Self {
-            metadata: CellMetadata::default(),
+            metadata: CellMetadata { collapsed: false },
             uuid: nanoid!(30),
             cell_type,
             content,
             pos,
+            locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
         }
+    }
+
+    pub fn eval(&mut self, kernel: &mut Kernel) {
+        println!("Evaluating cell: {:#?}", self);
     }
 
     pub fn parse(&self) -> Result<(), ParseError> {
@@ -67,12 +77,6 @@ impl Cell {
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct CellMetadata {
     pub collapsed: bool,
-}
-
-impl Default for CellMetadata {
-    fn default() -> Self {
-        Self { collapsed: false }
-    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
