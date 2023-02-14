@@ -27,7 +27,7 @@ pub struct Cell {
 
 impl Cell {
     pub fn new(cell_type: CellType, content: String, pos: usize) -> Self {
-        Self {
+        let mut cell = Self {
             metadata: CellMetadata { collapsed: false },
             uuid: nanoid!(30),
             cell_type,
@@ -36,7 +36,11 @@ impl Cell {
             locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
             dependencies: vec![],
             bindings: HashSet::new(),
-        }
+        };
+
+        cell.build_dependencies(&vec![]).unwrap();
+
+        cell
     }
 
     pub fn eval(&mut self, kernel: &mut Kernel) {
@@ -78,37 +82,10 @@ impl Cell {
         dep_topology: &mut Vec<String>,
     ) {
         for target in targets {
-            match &target.node {
-                ExprKind::Name { id, ctx, .. } => {
-                    self.handle_name_dep(id, cells, ctx, dep_topology)
-                }
-                _ => warn!("Unsupported assign target: {:#?}", target),
-            }
+            self.handle_expr_node(&target.node, cells, dep_topology);
         }
 
-        match &value.node {
-            ExprKind::Call { func, args, .. } => {
-                match &func.node {
-                    ExprKind::Attribute { value, .. } => match &value.node {
-                        ExprKind::Name { id, ctx, .. } => {
-                            self.handle_name_dep(id, cells, ctx, dep_topology)
-                        }
-                        _ => warn!("Unsupported value assign value: {:#?}", value),
-                    },
-                    _ => warn!("Unsupported func assign value: {:#?}", value),
-                }
-
-                for arg in args {
-                    match &arg.node {
-                        ExprKind::Constant { .. } => {}
-                        ExprKind::BinOp { left, right, .. } => {}
-                        _ => warn!("Unsupported arg assign value: {:#?}", value),
-                    }
-                }
-            }
-            ExprKind::Name { id, ctx, .. } => self.handle_name_dep(id, cells, ctx, dep_topology),
-            _ => warn!("Unsupported assign value: {:#?}", value),
-        }
+        self.handle_expr_node(&value.node, cells, dep_topology);
     }
 
     fn import_dependencies(
@@ -127,6 +104,41 @@ impl Cell {
                 info!("name: {:#?}", import_name);
                 self.bindings.insert(import_name);
             }
+        }
+    }
+
+    fn handle_expr_node(
+        &mut self,
+        node: &ExprKind,
+        cells: &Vec<Cell>,
+        dep_topology: &mut Vec<String>,
+    ) {
+        match node {
+            ExprKind::Name { id, ctx } => self.handle_name_dep(id, cells, ctx, dep_topology),
+            ExprKind::BinOp { left, right, .. } => {
+                self.handle_expr_node(&left.node, cells, dep_topology);
+                self.handle_expr_node(&right.node, cells, dep_topology);
+            }
+            ExprKind::Call { func, args, .. } => {
+                // match &func.node {
+                //     ExprKind::Attribute { value, .. } => match &value.node {
+                //         ExprKind::Name { id, ctx, .. } => {
+                //             self.handle_name_dep(id, cells, ctx, dep_topology)
+                //         }
+                //         _ => warn!("Unsupported value assign value: {:#?}", value),
+                //     },
+                //     _ => warn!("Unsupported func assign value: {:#?}", value),
+                // }
+
+                // for arg in args {
+                //     match &arg.node {
+                //         ExprKind::Constant { .. } => {}
+                //         ExprKind::BinOp { left, right, .. } => {}
+                //         _ => warn!("Unsupported arg assign value: {:#?}", value),
+                //     }
+                // }
+            }
+            _ => warn!("Unsupported expr node: {:#?}", node),
         }
     }
 
@@ -190,9 +202,17 @@ mod tests {
 
     #[test]
     fn test_assign_code_dependencies() {
-        let mut cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
+        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
         let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a".to_string(), 1);
-        let _deps_1 = cell_1.build_dependencies(&vec![cell_2.clone()]).unwrap();
+        let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
+        let expect: Vec<String> = vec![cell_1.uuid.to_string()];
+        assert_eq!(deps, expect);
+    }
+
+    #[test]
+    fn test_assign_add_code_dependencies() {
+        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
+        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a + 1".to_string(), 1);
         let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(deps, expect);
