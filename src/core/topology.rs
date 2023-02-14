@@ -24,8 +24,8 @@ impl Topology {
     pub fn add_cell(&mut self, cell: Cell) -> Result<(), Box<dyn Error>> {
         let cells: Vec<Cell> = self.cells.values().cloned().collect();
         let mut cell = cell;
-        let deps = cell.build_dependencies(&cells)?;
-        info!("Cell {} dependencies: {:#?}", cell.uuid, deps);
+        // let deps = cell.build_dependencies(&cells)?;
+        // info!("Cell {} dependencies: {:#?}", cell.uuid, deps);
 
         self.cells.insert(cell.uuid.clone(), cell);
         Ok(())

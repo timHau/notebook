@@ -1,10 +1,10 @@
+use std::collections::HashMap;
+
 use super::kernel::Kernel;
-use crate::core::{
-    cell::{Cell, CellType},
-    topology::Topology,
-};
+use crate::core::{cell::Cell, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
+use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
@@ -26,6 +26,8 @@ impl Default for NotebookMetadata {
     }
 }
 
+pub type Scope = HashMap<String, String>;
+
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Notebook {
     pub uuid: String,
@@ -35,14 +37,19 @@ pub struct Notebook {
 
     #[serde(skip)]
     kernel: Kernel,
+    #[serde(skip)]
+    scope: Scope,
 }
 
 impl Notebook {
     pub fn new(kernel: Kernel) -> Self {
+        let mut scope = Scope::default();
         // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
-        let code_cell_1 = Cell::new_reactive("a = 1");
-        let code_cell_2 = Cell::new_reactive("b = a + 1");
-        let code_cell_3 = Cell::new_reactive("np.pi");
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("np.pi", &mut scope).unwrap();
+
+        info!("Scope {:#?}", scope);
 
         let mut topology = Topology::new();
         topology.add_cell(code_cell_1).unwrap();
@@ -54,6 +61,7 @@ impl Notebook {
             uuid: nanoid!(30),
             meta_data: NotebookMetadata::default(),
             kernel,
+            scope,
             language_info: LanguageInfo {
                 name: String::from("python"),
                 version,
