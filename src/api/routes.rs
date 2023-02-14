@@ -49,8 +49,6 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
     };
 
-    notebook.eval(cell);
-
     HttpResponse::Ok().json(json!({ "status": "ok" }))
 }
 

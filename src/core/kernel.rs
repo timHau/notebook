@@ -20,15 +20,13 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&mut self) {
+    pub fn eval(&mut self, code: &str, locals: &mut Py<PyDict>) {
         Python::with_gil(|py| {
-            let locals = PyDict::new(py);
-            let code = "a = 1 + 1\nb = 2 + 2";
-            match py.run(code, Some(self.globals.as_ref(py)), Some(&locals)) {
+            match py.run(code, Some(self.globals.as_ref(py)), Some(locals.as_ref(py))) {
                 Ok(res) => println!("Success with result: {:?}", res),
                 Err(e) => println!("Error: {}", e),
             };
-            println!("Locals: {:?}", locals);
+            println!("Locals: {:#?}", locals.as_ref(py));
         });
     }
 }

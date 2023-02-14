@@ -5,7 +5,6 @@ use crate::core::{
 };
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use std::error;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
@@ -40,14 +39,12 @@ pub struct Notebook {
 
 impl Notebook {
     pub fn new(kernel: Kernel) -> Self {
-        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = b\nc = 1"), 0);
+        // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
         let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = 1"), 1);
 
         let mut topology = Topology::new();
-        topology
-            .add_cell(code_cell_1, Some(&vec![code_cell_2.uuid.clone()]))
-            .unwrap();
-        topology.add_cell(code_cell_2, None).unwrap();
+        // topology.add_cell(code_cell_1).unwrap();
+        topology.add_cell(code_cell_2).unwrap();
 
         let version = kernel.version.clone();
         Self {
@@ -65,10 +62,6 @@ impl Notebook {
 
     pub fn get_cell_mut(&mut self, cell_uuid: &str) -> Option<&mut Cell> {
         self.topology.get_cell_mut(cell_uuid)
-    }
-
-    pub fn eval(&mut self, cell: &mut Cell) -> Result<(), Box<dyn error::Error>> {
-        self.topology.eval(cell, &mut self.kernel)
     }
 }
 
