@@ -40,9 +40,9 @@ pub struct Notebook {
 impl Notebook {
     pub fn new(kernel: Kernel) -> Self {
         // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
-        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("a = 1"), 1);
-        let code_cell_2 = Cell::new(CellType::ReactiveCode, String::from("b = a + 1"), 1);
-        let code_cell_3 = Cell::new(CellType::ReactiveCode, String::from("np.pi"), 1);
+        let code_cell_1 = Cell::new_reactive("a = 1");
+        let code_cell_2 = Cell::new_reactive("b = a + 1");
+        let code_cell_3 = Cell::new_reactive("np.pi");
 
         let mut topology = Topology::new();
         topology.add_cell(code_cell_1).unwrap();

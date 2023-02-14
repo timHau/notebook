@@ -16,7 +16,6 @@ pub struct Cell {
     pub uuid: String,
     pub cell_type: CellType,
     pub content: String,
-    pub pos: usize,
     pub dependencies: Vec<String>,
 
     #[serde(skip)]
@@ -26,13 +25,12 @@ pub struct Cell {
 }
 
 impl Cell {
-    pub fn new(cell_type: CellType, content: String, pos: usize) -> Self {
+    pub fn new(cell_type: CellType, content: String) -> Self {
         let mut cell = Self {
             metadata: CellMetadata { collapsed: false },
             uuid: nanoid!(30),
             cell_type,
             content,
-            pos,
             locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
             dependencies: vec![],
             bindings: HashSet::new(),
@@ -41,6 +39,10 @@ impl Cell {
         cell.build_dependencies(&vec![]).unwrap();
 
         cell
+    }
+
+    pub fn new_reactive(content: &str) -> Self {
+        Self::new(CellType::ReactiveCode, String::from(content))
     }
 
     pub fn eval(&mut self, kernel: &mut Kernel) {
@@ -208,7 +210,7 @@ mod tests {
 
     #[test]
     fn test_trivial_code_dependencies() {
-        let mut cell = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
+        let mut cell = Cell::new_reactive("a = 1");
         cell.build_dependencies(&vec![]).unwrap();
         let expect: Vec<String> = vec![];
         assert_eq!(cell.dependencies, expect);
@@ -216,8 +218,8 @@ mod tests {
 
     #[test]
     fn test_assign_code_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a".to_string(), 1);
+        let cell_1 = Cell::new_reactive("a = 1");
+        let mut cell_2 = Cell::new_reactive("b = a");
         cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(cell_2.dependencies, expect);
@@ -225,8 +227,8 @@ mod tests {
 
     #[test]
     fn test_assign_add_code_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a + 1".to_string(), 1);
+        let cell_1 = Cell::new_reactive("a = 1");
+        let mut cell_2 = Cell::new_reactive("b = a + 1");
         cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(cell_2.dependencies, expect);
@@ -234,9 +236,9 @@ mod tests {
 
     #[test]
     fn test_assign_add_two_code_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a + c".to_string(), 1);
-        let cell_3 = Cell::new(CellType::ReactiveCode, "c = 1".to_string(), 2);
+        let cell_1 = Cell::new_reactive("a = 1");
+        let mut cell_2 = Cell::new_reactive("b = a + c");
+        let cell_3 = Cell::new_reactive("c = 1");
         cell_2
             .build_dependencies(&vec![cell_1.clone(), cell_3.clone()])
             .unwrap();
@@ -246,8 +248,8 @@ mod tests {
 
     #[test]
     fn test_import_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "import numpy as np".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "p = np.pi".to_string(), 1);
+        let cell_1 = Cell::new_reactive("import numpy as np");
+        let mut cell_2 = Cell::new_reactive("p = np.pi");
         cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(cell_2.dependencies, expect);
@@ -255,8 +257,8 @@ mod tests {
 
     #[test]
     fn test_attr_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "import numpy as np".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "np.pi".to_string(), 1);
+        let cell_1 = Cell::new_reactive("import numpy as np");
+        let mut cell_2 = Cell::new_reactive("np.pi");
         cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(cell_2.dependencies, expect);
@@ -264,9 +266,9 @@ mod tests {
 
     #[test]
     fn test_list_dependencies() {
-        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
-        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = [a, c]".to_string(), 1);
-        let cell_3 = Cell::new(CellType::ReactiveCode, "c = 2".to_string(), 0);
+        let cell_1 = Cell::new_reactive("a = 1");
+        let mut cell_2 = Cell::new_reactive("b = [a, c]");
+        let cell_3 = Cell::new_reactive("c = 2");
         cell_2
             .build_dependencies(&vec![cell_1.clone(), cell_3.clone()])
             .unwrap();
