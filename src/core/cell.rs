@@ -122,6 +122,7 @@ impl Cell {
             ExprKind::Attribute { value, attr, ctx } => {
                 self.handle_attr_dep(value, attr, cells, ctx, dep_topology)
             }
+            ExprKind::Constant { .. } => {}
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -171,7 +172,6 @@ impl Cell {
             //     format_spec,
             // } => todo!(),
             // ExprKind::JoinedStr { values } => todo!(),
-            // ExprKind::Constant { value, kind } => todo!(),
             // ExprKind::Subscript { value, slice, ctx } => todo!(),
             // ExprKind::Starred { value, ctx } => todo!(),
             // ExprKind::List { elts, ctx } => todo!(),
