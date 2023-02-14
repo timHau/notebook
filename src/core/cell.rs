@@ -142,6 +142,41 @@ impl Cell {
                 //     }
                 // }
             }
+            // ExprKind::BoolOp { op, values } => todo!(),
+            // ExprKind::NamedExpr { target, value } => todo!(),
+            // ExprKind::UnaryOp { op, operand } => todo!(),
+            // ExprKind::Lambda { args, body } => todo!(),
+            // ExprKind::IfExp { test, body, orelse } => todo!(),
+            // ExprKind::Dict { keys, values } => todo!(),
+            // ExprKind::Set { elts } => todo!(),
+            // ExprKind::ListComp { elt, generators } => todo!(),
+            // ExprKind::SetComp { elt, generators } => todo!(),
+            // ExprKind::DictComp {
+            //     key,
+            //     value,
+            //     generators,
+            // } => todo!(),
+            // ExprKind::GeneratorExp { elt, generators } => todo!(),
+            // ExprKind::Await { value } => todo!(),
+            // ExprKind::Yield { value } => todo!(),
+            // ExprKind::YieldFrom { value } => todo!(),
+            // ExprKind::Compare {
+            //     left,
+            //     ops,
+            //     comparators,
+            // } => todo!(),
+            // ExprKind::FormattedValue {
+            //     value,
+            //     conversion,
+            //     format_spec,
+            // } => todo!(),
+            // ExprKind::JoinedStr { values } => todo!(),
+            // ExprKind::Constant { value, kind } => todo!(),
+            // ExprKind::Subscript { value, slice, ctx } => todo!(),
+            // ExprKind::Starred { value, ctx } => todo!(),
+            // ExprKind::List { elts, ctx } => todo!(),
+            // ExprKind::Tuple { elts, ctx } => todo!(),
+            // ExprKind::Slice { lower, upper, step } => todo!(),
             _ => warn!("Unsupported expr node: {:#?}", node),
         }
     }
