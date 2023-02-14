@@ -84,7 +84,6 @@ impl Cell {
         for target in targets {
             self.handle_expr_node(&target.node, cells, dep_topology);
         }
-
         self.handle_expr_node(&value.node, cells, dep_topology);
     }
 
@@ -113,13 +112,18 @@ impl Cell {
         cells: &Vec<Cell>,
         dep_topology: &mut Vec<String>,
     ) {
+        eprintln!("Node: {:#?}", node);
         match node {
             ExprKind::Name { id, ctx } => self.handle_name_dep(id, cells, ctx, dep_topology),
             ExprKind::BinOp { left, right, .. } => {
                 self.handle_expr_node(&left.node, cells, dep_topology);
                 self.handle_expr_node(&right.node, cells, dep_topology);
             }
+            ExprKind::Attribute { value, attr, ctx } => {
+                self.handle_attr_dep(value, attr, cells, ctx, dep_topology)
+            }
             ExprKind::Call { func, args, .. } => {
+                eprintln!("Call: {:#?}", func);
                 // match &func.node {
                 //     ExprKind::Attribute { value, .. } => match &value.node {
                 //         ExprKind::Name { id, ctx, .. } => {
@@ -139,6 +143,22 @@ impl Cell {
                 // }
             }
             _ => warn!("Unsupported expr node: {:#?}", node),
+        }
+    }
+
+    fn handle_attr_dep(
+        &mut self,
+        value: &Located<ExprKind>,
+        _attr: &str,
+        cells: &Vec<Cell>,
+        _ctx: &ExprContext,
+        dep_topology: &mut Vec<String>,
+    ) {
+        match &value.node {
+            ExprKind::Name { id, ctx } => {
+                self.handle_name_dep(id, cells, ctx, dep_topology);
+            }
+            _ => warn!("Unsupported attr value: {:#?}", value),
         }
     }
 
@@ -213,6 +233,27 @@ mod tests {
     fn test_assign_add_code_dependencies() {
         let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
         let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a + 1".to_string(), 1);
+        let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
+        let expect: Vec<String> = vec![cell_1.uuid.to_string()];
+        assert_eq!(deps, expect);
+    }
+
+    #[test]
+    fn test_assign_add_two_code_dependencies() {
+        let cell_1 = Cell::new(CellType::ReactiveCode, "a = 1".to_string(), 0);
+        let mut cell_2 = Cell::new(CellType::ReactiveCode, "b = a + c".to_string(), 1);
+        let cell_3 = Cell::new(CellType::ReactiveCode, "c = 1".to_string(), 2);
+        let deps = cell_2
+            .build_dependencies(&vec![cell_1.clone(), cell_3.clone()])
+            .unwrap();
+        let expect: Vec<String> = vec![cell_1.uuid.to_string(), cell_3.uuid.to_string()];
+        assert_eq!(deps, expect);
+    }
+
+    #[test]
+    fn test_import_dependencies() {
+        let cell_1 = Cell::new(CellType::ReactiveCode, "import numpy as np".to_string(), 0);
+        let mut cell_2 = Cell::new(CellType::ReactiveCode, "p = np.pi".to_string(), 1);
         let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(deps, expect);
