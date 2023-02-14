@@ -60,12 +60,16 @@ impl Cell {
 
         let mut dependencies = vec![];
         for statement in ast.iter() {
+            eprintln!("{:#?}", statement);
             match &statement.node {
                 StmtKind::Import { names } => {
                     self.import_dependencies(names, cells, &mut dependencies)
                 }
                 StmtKind::Assign { targets, value, .. } => {
                     self.assign_dependencies(targets, value, cells, &mut dependencies)
+                }
+                StmtKind::Expr { value } => {
+                    self.handle_expr_node(&value.node, cells, &mut dependencies)
                 }
                 _ => warn!("Unsupported statement: {:#?}", statement),
             };
@@ -112,7 +116,6 @@ impl Cell {
         cells: &Vec<Cell>,
         dep_topology: &mut Vec<String>,
     ) {
-        eprintln!("Node: {:#?}", node);
         match node {
             ExprKind::Name { id, ctx } => self.handle_name_dep(id, cells, ctx, dep_topology),
             ExprKind::BinOp { left, right, .. } => {
@@ -120,7 +123,7 @@ impl Cell {
                 self.handle_expr_node(&right.node, cells, dep_topology);
             }
             ExprKind::Attribute { value, attr, ctx } => {
-                self.handle_attr_dep(value, attr, cells, ctx, dep_topology)
+                self.handle_expr_node(&value.node, cells, dep_topology);
             }
             ExprKind::Constant { .. } => {}
             ExprKind::Call { func, args, .. } => {
@@ -178,22 +181,6 @@ impl Cell {
             // ExprKind::Tuple { elts, ctx } => todo!(),
             // ExprKind::Slice { lower, upper, step } => todo!(),
             _ => warn!("Unsupported expr node: {:#?}", node),
-        }
-    }
-
-    fn handle_attr_dep(
-        &mut self,
-        value: &Located<ExprKind>,
-        _attr: &str,
-        cells: &Vec<Cell>,
-        _ctx: &ExprContext,
-        dep_topology: &mut Vec<String>,
-    ) {
-        match &value.node {
-            ExprKind::Name { id, ctx } => {
-                self.handle_name_dep(id, cells, ctx, dep_topology);
-            }
-            _ => warn!("Unsupported attr value: {:#?}", value),
         }
     }
 
@@ -289,6 +276,15 @@ mod tests {
     fn test_import_dependencies() {
         let cell_1 = Cell::new(CellType::ReactiveCode, "import numpy as np".to_string(), 0);
         let mut cell_2 = Cell::new(CellType::ReactiveCode, "p = np.pi".to_string(), 1);
+        let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
+        let expect: Vec<String> = vec![cell_1.uuid.to_string()];
+        assert_eq!(deps, expect);
+    }
+
+    #[test]
+    fn test_attr_dependencies() {
+        let cell_1 = Cell::new(CellType::ReactiveCode, "import numpy as np".to_string(), 0);
+        let mut cell_2 = Cell::new(CellType::ReactiveCode, "np.pi".to_string(), 1);
         let deps = cell_2.build_dependencies(&vec![cell_1.clone()]).unwrap();
         let expect: Vec<String> = vec![cell_1.uuid.to_string()];
         assert_eq!(deps, expect);
