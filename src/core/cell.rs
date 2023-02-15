@@ -189,6 +189,14 @@ impl Cell {
                     self.handle_expr_node(&format_spec.node, scope);
                 }
             }
+            ExprKind::Dict { keys, values } => {
+                for key in keys {
+                    self.handle_expr_node(&key.node, scope);
+                }
+                for value in values {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -210,7 +218,6 @@ impl Cell {
                 // }
             }
             // ExprKind::Lambda { args, body } => todo!(),
-            // ExprKind::Dict { keys, values } => todo!(),
             // ExprKind::ListComp { elt, generators } => todo!(),
             // ExprKind::SetComp { elt, generators } => todo!(),
             // ExprKind::DictComp {
@@ -562,6 +569,34 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b = f'{a}' + 'a'", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_dict_dependencies_1() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = {a: 1}", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_dict_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = {1: a}", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
