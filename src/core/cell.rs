@@ -153,6 +153,29 @@ impl Cell {
                 self.handle_expr_node(&body.node, scope);
                 self.handle_expr_node(&orelse.node, scope);
             }
+            ExprKind::Compare {
+                left, comparators, ..
+            } => {
+                self.handle_expr_node(&left.node, scope);
+                for comparator in comparators {
+                    self.handle_expr_node(&comparator.node, scope);
+                }
+            }
+            ExprKind::Subscript { value, slice, .. } => {
+                self.handle_expr_node(&value.node, scope);
+                self.handle_expr_node(&slice.node, scope);
+            }
+            ExprKind::Slice { lower, upper, step } => {
+                if let Some(lower) = lower {
+                    self.handle_expr_node(&lower.node, scope);
+                }
+                if let Some(upper) = upper {
+                    self.handle_expr_node(&upper.node, scope);
+                }
+                if let Some(step) = step {
+                    self.handle_expr_node(&step.node, scope);
+                }
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -187,20 +210,13 @@ impl Cell {
             // ExprKind::Await { value } => todo!(),
             // ExprKind::Yield { value } => todo!(),
             // ExprKind::YieldFrom { value } => todo!(),
-            // ExprKind::Compare {
-            //     left,
-            //     ops,
-            //     comparators,
-            // } => todo!(),
             // ExprKind::FormattedValue {
             //     value,
             //     conversion,
             //     format_spec,
             // } => todo!(),
             // ExprKind::JoinedStr { values } => todo!(),
-            // ExprKind::Subscript { value, slice, ctx } => todo!(),
             // ExprKind::Starred { value, ctx } => todo!(),
-            // ExprKind::Slice { lower, upper, step } => todo!(),
             _ => warn!("Unsupported expr node: {:#?}", node),
         }
     }
@@ -209,7 +225,9 @@ impl Cell {
         match ctx {
             ExprContext::Load => {
                 if let Some(dep) = scope.get(id) {
-                    self.dependencies.insert(dep.to_string());
+                    if dep != &self.uuid {
+                        self.dependencies.insert(dep.to_string());
+                    }
                 }
             }
             ExprContext::Store => {
@@ -402,7 +420,7 @@ mod tests {
     }
 
     #[test]
-    fn test_ifexpr_dependencies() -> Result<(), Box<dyn Error>> {
+    fn test_ifexpr_dependencies_1() -> Result<(), Box<dyn Error>> {
         let mut scope = Scope::new();
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
@@ -429,5 +447,77 @@ mod tests {
         let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
 
         Ok(assert_eq!(cell_3.dependencies, expect))
+    }
+
+    #[test]
+    fn test_compare_dependencies_1() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 2", &mut scope)?;
+        let mut cell_3 = Cell::new_reactive("c = a < b", &mut scope)?;
+
+        cell_3.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_3.dependencies, expect))
+    }
+
+    #[test]
+    fn test_compare_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 2", &mut scope)?;
+        let mut cell_3 = Cell::new_reactive("c = a >= b", &mut scope)?;
+
+        cell_3.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_3.dependencies, expect))
+    }
+
+    #[test]
+    fn test_slice_lower_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("c = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("a = [1, 2, 3]\nb = a[c:]", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_slice_upper_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("c = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("a = [1, 2, 3]\nb = a[:c]", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_slice_step_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("c = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("a = [1, 2, 3]\nb = a[0:c:2]", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
     }
 }
