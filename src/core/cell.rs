@@ -220,27 +220,12 @@ impl Cell {
                     }
                 }
             }
-            ExprKind::Call { func, args, .. } => {
-                eprintln!("Call: {:#?}", func);
-                // match &func.node {
-                //     ExprKind::Attribute { value, .. } => match &value.node {
-                //         ExprKind::Name { id, ctx, .. } => {
-                //             self.handle_name_dep(id, cells, ctx, dep_topology)
-                //         }
-                //         _ => warn!("Unsupported value assign value: {:#?}", value),
-                //     },
-                //     _ => warn!("Unsupported func assign value: {:#?}", value),
-                // }
-
-                // for arg in args {
-                //     match &arg.node {
-                //         ExprKind::Constant { .. } => {}
-                //         ExprKind::BinOp { left, right, .. } => {}
-                //         _ => warn!("Unsupported arg assign value: {:#?}", value),
-                //     }
-                // }
+            ExprKind::Lambda { body, .. } => {
+                self.handle_expr_node(&body.node, scope);
             }
-            // ExprKind::Lambda { args, body } => todo!(),
+            ExprKind::Call { func, .. } => {
+                self.handle_expr_node(&func.node, scope);
+            }
             // ExprKind::GeneratorExp { elt, generators } => todo!(),
             // ExprKind::Await { value } => todo!(),
             // ExprKind::Yield { value } => todo!(),
@@ -719,6 +704,34 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b = {2: 1 for i in [1, 2, 3] if a > 0}", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_lambda_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = lambda x: a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_call_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = lambda x: 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = a(1)", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
