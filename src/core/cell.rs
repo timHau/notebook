@@ -148,6 +148,11 @@ impl Cell {
                 self.handle_expr_node(&target.node, scope);
                 self.handle_expr_node(&value.node, scope);
             }
+            ExprKind::IfExp { test, body, orelse } => {
+                self.handle_expr_node(&test.node, scope);
+                self.handle_expr_node(&body.node, scope);
+                self.handle_expr_node(&orelse.node, scope);
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -169,7 +174,6 @@ impl Cell {
                 // }
             }
             // ExprKind::Lambda { args, body } => todo!(),
-            // ExprKind::IfExp { test, body, orelse } => todo!(),
             // ExprKind::Dict { keys, values } => todo!(),
             // ExprKind::Set { elts } => todo!(),
             // ExprKind::ListComp { elt, generators } => todo!(),
@@ -395,5 +399,35 @@ mod tests {
         let expect = HashSet::from([cell_1.uuid.to_string()]);
 
         Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_ifexpr_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 2", &mut scope)?;
+        let mut cell_3 = Cell::new_reactive("c = a if b else 3", &mut scope)?;
+
+        cell_3.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_3.dependencies, expect))
+    }
+
+    #[test]
+    fn test_ifexpr_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 2", &mut scope)?;
+        let mut cell_3 = Cell::new_reactive("c = a if 3 else b", &mut scope)?;
+
+        cell_3.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_3.dependencies, expect))
     }
 }
