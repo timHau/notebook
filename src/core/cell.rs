@@ -123,36 +123,41 @@ impl Cell {
     fn handle_expr_node(&mut self, node: &ExprKind, scope: &mut Scope) {
         match node {
             ExprKind::Name { id, ctx } => self.handle_name_dep(id, ctx, scope),
+
             ExprKind::BinOp { left, right, .. } => {
                 self.handle_expr_node(&left.node, scope);
                 self.handle_expr_node(&right.node, scope);
             }
-            ExprKind::Attribute { value, .. } => {
-                self.handle_expr_node(&value.node, scope);
-            }
+
             ExprKind::List { elts, .. } | ExprKind::Tuple { elts, .. } | ExprKind::Set { elts } => {
                 for elt in elts {
                     self.handle_expr_node(&elt.node, scope);
                 }
             }
+
             ExprKind::Constant { .. } => {}
+
             ExprKind::UnaryOp { operand, .. } => {
                 self.handle_expr_node(&operand.node, scope);
             }
-            ExprKind::BoolOp { values, .. } => {
+
+            ExprKind::BoolOp { values, .. } | ExprKind::JoinedStr { values } => {
                 for value in values {
                     self.handle_expr_node(&value.node, scope);
                 }
             }
+
             ExprKind::NamedExpr { target, value } => {
                 self.handle_expr_node(&target.node, scope);
                 self.handle_expr_node(&value.node, scope);
             }
+
             ExprKind::IfExp { test, body, orelse } => {
                 self.handle_expr_node(&test.node, scope);
                 self.handle_expr_node(&body.node, scope);
                 self.handle_expr_node(&orelse.node, scope);
             }
+
             ExprKind::Compare {
                 left, comparators, ..
             } => {
@@ -161,10 +166,12 @@ impl Cell {
                     self.handle_expr_node(&comparator.node, scope);
                 }
             }
+
             ExprKind::Subscript { value, slice, .. } => {
                 self.handle_expr_node(&value.node, scope);
                 self.handle_expr_node(&slice.node, scope);
             }
+
             ExprKind::Slice { lower, upper, step } => {
                 if let Some(lower) = lower {
                     self.handle_expr_node(&lower.node, scope);
@@ -176,11 +183,7 @@ impl Cell {
                     self.handle_expr_node(&step.node, scope);
                 }
             }
-            ExprKind::JoinedStr { values } => {
-                for value in values {
-                    self.handle_expr_node(&value.node, scope);
-                }
-            }
+
             ExprKind::FormattedValue {
                 value, format_spec, ..
             } => {
@@ -189,6 +192,7 @@ impl Cell {
                     self.handle_expr_node(&format_spec.node, scope);
                 }
             }
+
             ExprKind::Dict { keys, values } => {
                 for key in keys {
                     self.handle_expr_node(&key.node, scope);
@@ -197,6 +201,7 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
             }
+
             ExprKind::ListComp { elt, generators }
             | ExprKind::SetComp { elt, generators }
             | ExprKind::GeneratorExp { elt, generators } => {
@@ -208,6 +213,7 @@ impl Cell {
                     }
                 }
             }
+
             ExprKind::DictComp {
                 key,
                 value,
@@ -222,17 +228,25 @@ impl Cell {
                     }
                 }
             }
+
             ExprKind::Lambda { body, .. } => {
                 self.handle_expr_node(&body.node, scope);
             }
+
+            ExprKind::Await { value }
+            | ExprKind::YieldFrom { value }
+            | ExprKind::Attribute { value, .. }
+            | ExprKind::Starred { value, .. } => self.handle_expr_node(&value.node, scope),
+
             ExprKind::Call { func, .. } => {
                 self.handle_expr_node(&func.node, scope);
             }
 
-            // ExprKind::Await { value } => todo!(),
-            // ExprKind::Yield { value } => todo!(),
-            // ExprKind::YieldFrom { value } => todo!(),
-            // ExprKind::Starred { value, ctx } => todo!(),
+            ExprKind::Yield { value } => {
+                if let Some(value) = value {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
             _ => warn!("Unsupported expr node: {:#?}", node),
         }
     }
@@ -748,6 +762,48 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b = (a for _ in [1, 2, 3])", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_await_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = await a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_yield_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = yield a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_yieldfrom_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = yield from a", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
