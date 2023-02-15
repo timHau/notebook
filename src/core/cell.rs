@@ -197,7 +197,9 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
             }
-            ExprKind::ListComp { elt, generators } | ExprKind::SetComp { elt, generators } => {
+            ExprKind::ListComp { elt, generators }
+            | ExprKind::SetComp { elt, generators }
+            | ExprKind::GeneratorExp { elt, generators } => {
                 self.handle_expr_node(&elt.node, scope);
                 for generator in generators {
                     self.handle_expr_node(&generator.iter.node, scope);
@@ -226,7 +228,7 @@ impl Cell {
             ExprKind::Call { func, .. } => {
                 self.handle_expr_node(&func.node, scope);
             }
-            // ExprKind::GeneratorExp { elt, generators } => todo!(),
+
             // ExprKind::Await { value } => todo!(),
             // ExprKind::Yield { value } => todo!(),
             // ExprKind::YieldFrom { value } => todo!(),
@@ -732,6 +734,20 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = lambda x: 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b = a(1)", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_generatorexp_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = (a for _ in [1, 2, 3])", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
