@@ -197,6 +197,15 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
             }
+            ExprKind::ListComp { elt, generators } | ExprKind::SetComp { elt, generators } => {
+                self.handle_expr_node(&elt.node, scope);
+                for generator in generators {
+                    self.handle_expr_node(&generator.iter.node, scope);
+                    for if_expr in &generator.ifs {
+                        self.handle_expr_node(&if_expr.node, scope);
+                    }
+                }
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -218,8 +227,6 @@ impl Cell {
                 // }
             }
             // ExprKind::Lambda { args, body } => todo!(),
-            // ExprKind::ListComp { elt, generators } => todo!(),
-            // ExprKind::SetComp { elt, generators } => todo!(),
             // ExprKind::DictComp {
             //     key,
             //     value,
@@ -601,6 +608,70 @@ mod tests {
         cell_2.build_dependencies(&mut scope)?;
 
         let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_listcomp_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = [a for _ in [1, 2, 3]]", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_setcomp_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = {a for _ in [1, 2, 3]}", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_listcomp_if_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = [a for _ in [1, 2, 3] if c > 1]", &mut scope)?;
+        let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_3.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_listcomp_mult_if_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 =
+            Cell::new_reactive("b = [a for _ in [1, 2, 3] if c > 1 if d > 2]", &mut scope)?;
+        let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
+        let cell_4 = Cell::new_reactive("d = 3", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([
+            cell_1.uuid.to_string(),
+            cell_3.uuid.to_string(),
+            cell_4.uuid.to_string(),
+        ]);
 
         Ok(assert_eq!(cell_2.dependencies, expect))
     }
