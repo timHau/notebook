@@ -52,9 +52,9 @@ impl Notebook {
         info!("Scope {:#?}", scope);
 
         let mut topology = Topology::new();
-        topology.add_cell(code_cell_1).unwrap();
-        topology.add_cell(code_cell_2).unwrap();
-        topology.add_cell(code_cell_3).unwrap();
+        topology.add_cell(&code_cell_1);
+        topology.add_cell(&code_cell_2);
+        topology.add_cell(&code_cell_3);
 
         let version = kernel.version.clone();
         Self {

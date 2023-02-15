@@ -73,6 +73,29 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
                 StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
+                // StmtKind::FunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
+                // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
+                // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
+                // StmtKind::Return { value } => todo!(),
+                // StmtKind::Delete { targets } => todo!(),
+                // StmtKind::AugAssign { target, op, value } => todo!(),
+                // StmtKind::AnnAssign { target, annotation, value, simple } => todo!(),
+                // StmtKind::For { target, iter, body, orelse, type_comment } => todo!(),
+                // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
+                // StmtKind::While { test, body, orelse } => todo!(),
+                // StmtKind::If { test, body, orelse } => todo!(),
+                // StmtKind::With { items, body, type_comment } => todo!(),
+                // StmtKind::AsyncWith { items, body, type_comment } => todo!(),
+                // StmtKind::Match { subject, cases } => todo!(),
+                // StmtKind::Raise { exc, cause } => todo!(),
+                // StmtKind::Try { body, handlers, orelse, finalbody } => todo!(),
+                // StmtKind::Assert { test, msg } => todo!(),
+                // StmtKind::ImportFrom { module, names, level } => todo!(),
+                // StmtKind::Global { names } => todo!(),
+                // StmtKind::Nonlocal { names } => todo!(),
+                // StmtKind::Pass => todo!(),
+                // StmtKind::Break => todo!(),
+                // StmtKind::Continue => todo!(),
                 _ => warn!("Unsupported statement: {:#?}", statement),
             };
         }
@@ -101,15 +124,27 @@ impl Cell {
                 self.handle_expr_node(&left.node, scope);
                 self.handle_expr_node(&right.node, scope);
             }
-            ExprKind::Attribute { value, attr, ctx } => {
+            ExprKind::Attribute { value, .. } => {
                 self.handle_expr_node(&value.node, scope);
             }
-            ExprKind::List { elts, ctx } => {
+            ExprKind::List { elts, .. } => {
                 for elt in elts {
                     self.handle_expr_node(&elt.node, scope);
                 }
             }
             ExprKind::Constant { .. } => {}
+            ExprKind::UnaryOp { operand, .. } => {
+                self.handle_expr_node(&operand.node, scope);
+            }
+            ExprKind::BoolOp { values, .. } => {
+                for value in values {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
+            ExprKind::NamedExpr { target, value } => {
+                self.handle_expr_node(&target.node, scope);
+                self.handle_expr_node(&value.node, scope);
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -130,9 +165,6 @@ impl Cell {
                 //     }
                 // }
             }
-            // ExprKind::BoolOp { op, values } => todo!(),
-            // ExprKind::NamedExpr { target, value } => todo!(),
-            // ExprKind::UnaryOp { op, operand } => todo!(),
             // ExprKind::Lambda { args, body } => todo!(),
             // ExprKind::IfExp { test, body, orelse } => todo!(),
             // ExprKind::Dict { keys, values } => todo!(),
@@ -301,6 +333,49 @@ mod tests {
         cell_2.build_dependencies(&mut scope)?;
 
         let expect = HashSet::from([cell_1.uuid.to_string(), cell_3.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_unary_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = -a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_boolop_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 2", &mut scope)?;
+        let mut cell_3 = Cell::new_reactive("c = a and b", &mut scope)?;
+
+        cell_3.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_2.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_3.dependencies, expect))
+    }
+
+    #[test]
+    fn test_namedexpr_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("(b := a)", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
 
         Ok(assert_eq!(cell_2.dependencies, expect))
     }
