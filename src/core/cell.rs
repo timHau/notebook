@@ -73,12 +73,15 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
                 StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
+                // StmtKind::AugAssign { target, value, .. } => {
+                //     self.handle_expr_node(&target.node, scope);
+                //     self.handle_expr_node(&value.node, scope);
+                // }
                 // StmtKind::FunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
                 // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
                 // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
                 // StmtKind::Return { value } => todo!(),
                 // StmtKind::Delete { targets } => todo!(),
-                // StmtKind::AugAssign { target, op, value } => todo!(),
                 // StmtKind::AnnAssign { target, annotation, value, simple } => todo!(),
                 // StmtKind::For { target, iter, body, orelse, type_comment } => todo!(),
                 // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
@@ -127,7 +130,7 @@ impl Cell {
             ExprKind::Attribute { value, .. } => {
                 self.handle_expr_node(&value.node, scope);
             }
-            ExprKind::List { elts, .. } => {
+            ExprKind::List { elts, .. } | ExprKind::Tuple { elts, .. } => {
                 for elt in elts {
                     self.handle_expr_node(&elt.node, scope);
                 }
@@ -193,7 +196,6 @@ impl Cell {
             // ExprKind::JoinedStr { values } => todo!(),
             // ExprKind::Subscript { value, slice, ctx } => todo!(),
             // ExprKind::Starred { value, ctx } => todo!(),
-            // ExprKind::Tuple { elts, ctx } => todo!(),
             // ExprKind::Slice { lower, upper, step } => todo!(),
             _ => warn!("Unsupported expr node: {:#?}", node),
         }
@@ -328,6 +330,21 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b = [a, c]", &mut scope)?;
+        let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_3.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_tuple_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = (a, c)", &mut scope)?;
         let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
