@@ -130,7 +130,7 @@ impl Cell {
             ExprKind::Attribute { value, .. } => {
                 self.handle_expr_node(&value.node, scope);
             }
-            ExprKind::List { elts, .. } | ExprKind::Tuple { elts, .. } => {
+            ExprKind::List { elts, .. } | ExprKind::Tuple { elts, .. } | ExprKind::Set { elts } => {
                 for elt in elts {
                     self.handle_expr_node(&elt.node, scope);
                 }
@@ -176,6 +176,19 @@ impl Cell {
                     self.handle_expr_node(&step.node, scope);
                 }
             }
+            ExprKind::JoinedStr { values } => {
+                for value in values {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
+            ExprKind::FormattedValue {
+                value, format_spec, ..
+            } => {
+                self.handle_expr_node(&value.node, scope);
+                if let Some(format_spec) = format_spec {
+                    self.handle_expr_node(&format_spec.node, scope);
+                }
+            }
             ExprKind::Call { func, args, .. } => {
                 eprintln!("Call: {:#?}", func);
                 // match &func.node {
@@ -198,7 +211,6 @@ impl Cell {
             }
             // ExprKind::Lambda { args, body } => todo!(),
             // ExprKind::Dict { keys, values } => todo!(),
-            // ExprKind::Set { elts } => todo!(),
             // ExprKind::ListComp { elt, generators } => todo!(),
             // ExprKind::SetComp { elt, generators } => todo!(),
             // ExprKind::DictComp {
@@ -210,12 +222,6 @@ impl Cell {
             // ExprKind::Await { value } => todo!(),
             // ExprKind::Yield { value } => todo!(),
             // ExprKind::YieldFrom { value } => todo!(),
-            // ExprKind::FormattedValue {
-            //     value,
-            //     conversion,
-            //     format_spec,
-            // } => todo!(),
-            // ExprKind::JoinedStr { values } => todo!(),
             // ExprKind::Starred { value, ctx } => todo!(),
             _ => warn!("Unsupported expr node: {:#?}", node),
         }
@@ -513,6 +519,34 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("c = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("a = [1, 2, 3]\nb = a[0:c:2]", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_formattedvalue_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = f'{a}'", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_joinedstr_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = f'{a}' + 'a'", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
