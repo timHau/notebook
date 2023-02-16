@@ -109,9 +109,9 @@ impl Cell {
                 // StmtKind::ImportFrom { module, names, level } => todo!(),
                 // StmtKind::Global { names } => todo!(),
                 // StmtKind::Nonlocal { names } => todo!(),
-                // StmtKind::Pass => todo!(),
-                // StmtKind::Break => todo!(),
-                // StmtKind::Continue => todo!(),
+                StmtKind::Pass => {}
+                StmtKind::Break => {}
+                StmtKind::Continue => {}
                 _ => warn!("Unsupported statement: {:#?}", statement),
             };
         }
