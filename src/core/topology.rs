@@ -1,7 +1,10 @@
 use super::{kernel::Kernel, notebook::Scope};
 use crate::core::{cell::Cell, errors::TopologyErrors};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error};
+use std::{
+    collections::{HashMap, VecDeque},
+    error::Error,
+};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
@@ -39,6 +42,7 @@ impl Topology {
     }
 
     pub fn add_cell(&mut self, cell: &Cell) {
+        self.display_order.push(cell.uuid.clone()); // TODO should be possible to add cell anywhere
         self.cells.insert(cell.uuid.clone(), cell.clone());
     }
 
@@ -61,8 +65,7 @@ impl Topology {
                 None => return Err(Box::new(TopologyErrors::CellNotFound)),
             };
 
-            let locals = dep_cell.locals.clone();
-            dependencies.push(locals.unwrap());
+            dependencies.push(dep_cell);
         }
 
         kernel.eval(cell, &dependencies);
@@ -82,61 +85,61 @@ impl From<Vec<&Cell>> for Topology {
     }
 }
 
-#[derive(Debug, Clone)]
-struct TopoNode<'a> {
-    cell: &'a Cell,
-    mark: TopoMark,
-}
-
-#[derive(Debug, Clone)]
-enum TopoMark {
-    Unmarked,
-    TempMark,
-    PermMark,
-}
-
 impl Topology {
     fn topological_sort(&self) -> Result<Vec<String>, Box<dyn Error>> {
-        // let mut sorted = vec![];
-        // let mut nodes = HashMap::new();
+        let mut sorted = vec![];
 
-        // for (_uuid, cell) in self.cells.iter() {
-        //     let node = TopoNode {
-        //         cell,
-        //         mark: TopoMark::Unmarked,
-        //     };
-        //     nodes.insert(cell.uuid.clone(), node);
-        // }
+        let cells = self.cells.clone();
+        let nodes = cells.values().collect::<Vec<_>>();
 
-        // for (cell_uuid, node) in nodes.clone().iter_mut() {
-        //     Self::visit(node, &mut nodes)?;
-        //     sorted.push(cell_uuid.clone());
-        // }
+        let mut in_degree = HashMap::new();
+        for cell_uuid in self.display_order.iter() {
+            let cell = match cells.get(cell_uuid) {
+                Some(cell) => cell,
+                None => return Err(Box::new(TopologyErrors::CellNotFound)),
+            };
+            in_degree.insert(cell_uuid.clone(), cell.dependencies.len());
+        }
 
-        // Ok(sorted)
-        todo!()
-    }
+        let mut queue = VecDeque::new();
+        for (cell_uuid, degree) in in_degree.iter() {
+            if *degree == 0 {
+                let cell = match cells.get(cell_uuid) {
+                    Some(cell) => cell,
+                    None => return Err(Box::new(TopologyErrors::CellNotFound)),
+                };
+                queue.push_back(cell);
+            }
+        }
 
-    fn visit(
-        node: &mut TopoNode,
-        nodes: &mut HashMap<String, TopoNode>,
-    ) -> Result<(), Box<dyn Error>> {
-        // match node.mark {
-        //     TopoMark::PermMark => Ok(()),
-        //     TopoMark::TempMark => Err(Box::new(CycleDetectedError)),
-        //     TopoMark::Unmarked => {
-        //         node.mark = TopoMark::TempMark;
+        let mut count = 0;
+        while !queue.is_empty() {
+            let cell = queue.pop_front().unwrap();
+            sorted.push(cell.uuid.clone());
+            eprintln!("sorted: {:#?}", cell);
 
-        //         for dep_id in node.cell.dependencies.iter() {
-        //             let child_node = nodes.get_mut(dep_id).unwrap();
-        //             Self::visit(child_node, nodes)?;
-        //         }
+            for dep_uuid in cell.dependents.clone().iter() {
+                let degree = in_degree.get_mut(dep_uuid).unwrap();
+                *degree -= 1;
 
-        //         node.mark = TopoMark::PermMark;
-        //         Ok(())
-        //     }
-        // }
-        todo!()
+                if *degree == 0 {
+                    let dep_cell = match cells.get(dep_uuid) {
+                        Some(dep_cell) => dep_cell,
+                        None => return Err(Box::new(TopologyErrors::CellNotFound)),
+                    };
+                    let dep_node = dep_cell;
+                    queue.push_back(dep_node);
+                }
+            }
+
+            count += 1;
+        }
+
+        if count != nodes.len() {
+            return Err(Box::new(TopologyErrors::CycleDetected));
+        }
+
+        Ok(sorted)
     }
 }
 
@@ -146,18 +149,63 @@ mod tests {
 
     #[test]
     fn test_topo_sort() {
-        // let mut scope = HashMap::new();
-        // let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
-        // let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
 
-        // let mut topology = Topology::new();
-        // topology.add_cell(&code_cell_1);
-        // topology.add_cell(&code_cell_2);
+        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2]);
+        topology.build(&mut scope).unwrap();
 
-        // println!("{:#?}", topology.cells);
+        let sorted = topology.topological_sort().unwrap();
+        let expect = vec![code_cell_1.uuid.clone(), code_cell_2.uuid.clone()];
+        assert_eq!(sorted, expect);
+    }
 
-        // let sorted = topology.topological_sort().unwrap();
-        // let expect = vec![code_cell_1.uuid.clone(), code_cell_2.uuid.clone()];
-        // assert_eq!(sorted, expect);
+    #[test]
+    fn test_topo_sort_2() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = 4", &mut scope).unwrap();
+
+        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3]);
+        topology.build(&mut scope).unwrap();
+
+        let sorted = topology.topological_sort().unwrap();
+        assert_eq!(sorted.last(), Some(&code_cell_2.uuid));
+    }
+
+    #[test]
+    fn test_topo_sort_3() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
+        let code_cell_4 = Cell::new_reactive("d = 4", &mut scope).unwrap();
+
+        let mut topology =
+            Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4]);
+        topology.build(&mut scope).unwrap();
+
+        let sorted = topology.topological_sort().unwrap();
+        assert_eq!(sorted.last(), Some(&code_cell_2.uuid));
+        assert_eq!(sorted.get(2).unwrap(), &code_cell_3.uuid.clone());
+    }
+
+    #[test]
+    fn test_topo_sort_cycle_detected() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
+        let code_cell_4 = Cell::new_reactive("d = b", &mut scope).unwrap();
+
+        let mut topology =
+            Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4]);
+        topology.build(&mut scope).unwrap();
+
+        let sorted = topology.topological_sort();
+        assert!(sorted.is_err());
+        assert!(sorted.err().unwrap().is::<TopologyErrors>());
     }
 }

@@ -21,13 +21,14 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&mut self, cell: &mut Cell, dependencies: &[Py<PyDict>]) {
+    pub fn eval(&mut self, cell: &mut Cell, dependencies: &[&Cell]) {
         Python::with_gil(|py| {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
 
             for dep in dependencies.iter() {
-                let dep = dep.as_ref(py).as_mapping();
+                let dep_locals = dep.locals.clone().unwrap();
+                let dep = dep_locals.as_ref(py).as_mapping();
                 locals.update(dep).unwrap();
             }
 
@@ -35,7 +36,8 @@ impl Kernel {
                 Ok(res) => println!("Success with result: {:?}", res),
                 Err(e) => println!("Error: {}", e),
             };
-            // println!("Locals: {:#?}", locals.as_ref(py));
+
+            println!("Locals: {:#?}", locals);
         });
     }
 }
