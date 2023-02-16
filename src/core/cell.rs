@@ -7,7 +7,10 @@ use rustpython_parser::{
     parser,
 };
 use serde::{Deserialize, Serialize};
-use std::{collections::HashSet, error::Error};
+use std::{
+    collections::{HashMap, HashSet},
+    error::Error,
+};
 use tracing::{info, log::warn};
 
 pub type Dependencies = HashSet<String>;
@@ -19,6 +22,7 @@ pub struct Cell {
     pub cell_type: CellType,
     pub content: String,
     pub dependencies: Dependencies,
+    pub dependents: Dependencies,
 
     #[serde(skip)]
     locals: Option<Py<PyDict>>,
@@ -37,6 +41,7 @@ impl Cell {
             content,
             locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
             dependencies: Dependencies::new(),
+            dependents: Dependencies::new(),
         };
 
         cell.build_dependencies(scope)?;
@@ -46,6 +51,14 @@ impl Cell {
 
     pub fn new_reactive(content: &str, scope: &mut Scope) -> Result<Self, Box<dyn Error>> {
         Self::new(CellType::ReactiveCode, String::from(content), scope)
+    }
+
+    pub fn build_dependents(&self, cells: &mut HashMap<String, Cell>) {
+        for dep in self.dependencies.iter() {
+            if let Some(dep_cell) = cells.get_mut(dep) {
+                dep_cell.dependents.insert(self.uuid.clone());
+            }
+        }
     }
 
     // pub fn eval(&mut self, kernel: &mut Kernel) {
@@ -285,6 +298,8 @@ pub enum CellType {
 
 #[cfg(test)]
 mod tests {
+    use crate::core::topology::Topology;
+
     use super::*;
     use std::error::Error;
 
@@ -842,5 +857,38 @@ mod tests {
         let expect = HashSet::from([cell_1.uuid.to_string()]);
 
         Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_build_dependents() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = b + 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 1", &mut scope)?;
+
+        let mut topology = Topology::from(vec![&cell_1, &cell_2]);
+        topology.build(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+        let c_2 = topology.cells.get(&cell_2.uuid).unwrap();
+        Ok(assert_eq!(c_2.dependents, expect))
+    }
+
+    #[test]
+    fn test_build_dependents_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = b + c", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = 1", &mut scope)?;
+        let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
+
+        let mut topology = Topology::from(vec![&cell_1, &cell_2, &cell_3]);
+        topology.build(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+        let c_2 = topology.cells.get(&cell_2.uuid).unwrap();
+        let c_3 = topology.cells.get(&cell_3.uuid).unwrap();
+        assert_eq!(c_2.dependents, expect);
+        Ok(assert_eq!(c_3.dependents, expect))
     }
 }

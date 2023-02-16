@@ -1,7 +1,8 @@
+use super::notebook::Scope;
 use crate::core::cell::Cell;
 use core::fmt;
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, hash::Hash};
+use std::{collections::HashMap, error::Error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
@@ -15,8 +16,24 @@ impl Topology {
         }
     }
 
-    pub fn build(&mut self) -> Result<(), Box<dyn Error>> {
-        let topo_sorted = self.topological_sort()?;
+    fn build_dependencies(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
+        for cell in self.cells.values_mut() {
+            cell.build_dependencies(scope)?;
+        }
+        Ok(())
+    }
+
+    fn build_dependents(&mut self) {
+        let mut cells = self.cells.clone();
+        for cell in cells.clone().values().clone() {
+            cell.build_dependents(&mut cells);
+        }
+        self.cells = cells;
+    }
+
+    pub fn build(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
+        self.build_dependencies(scope)?;
+        self.build_dependents();
         Ok(())
     }
 
@@ -26,6 +43,16 @@ impl Topology {
 
     pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
         self.cells.get_mut(uuid)
+    }
+}
+
+impl From<Vec<&Cell>> for Topology {
+    fn from(cells: Vec<&Cell>) -> Self {
+        let mut topology = Topology::new();
+        for cell in cells {
+            topology.add_cell(cell);
+        }
+        topology
     }
 }
 

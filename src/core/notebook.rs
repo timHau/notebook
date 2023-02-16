@@ -4,7 +4,6 @@ use super::kernel::Kernel;
 use crate::core::{cell::Cell, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
@@ -45,16 +44,12 @@ impl Notebook {
     pub fn new(kernel: Kernel) -> Self {
         let mut scope = Scope::default();
         // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
-        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
-        let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
-        let code_cell_3 = Cell::new_reactive("np.pi", &mut scope).unwrap();
+        let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = 2", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 
-        info!("Scope {:#?}", scope);
-
-        let mut topology = Topology::new();
-        topology.add_cell(&code_cell_1);
-        topology.add_cell(&code_cell_2);
-        topology.add_cell(&code_cell_3);
+        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3]);
+        topology.build(&mut scope).unwrap();
 
         let version = kernel.version.clone();
         Self {
