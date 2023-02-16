@@ -190,7 +190,25 @@ impl Cell {
                 }
             }
 
-            // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
+            StmtKind::ClassDef {
+                name,
+                bases,
+                body,
+                decorator_list,
+                ..
+            } => {
+                scope.insert(name.to_string(), self.uuid.clone());
+                for base in bases {
+                    self.handle_expr_node(&base.node, scope);
+                }
+                for statement in body {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+                for decorator in decorator_list {
+                    self.handle_expr_node(&decorator.node, scope);
+                }
+            }
+
             // StmtKind::Delete { targets } => todo!(),
             // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
             // StmtKind::With { items, body, type_comment } => todo!(),
@@ -1090,6 +1108,55 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = [1, 2, 3]", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("for i in [4,5,6]:\n  for j in a: j", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_class_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive(
+            "class b:\n  def __init__(self):\n    self.a = a",
+            &mut scope,
+        )?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_class_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("class a:\n  def __init__(self): pass", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive(
+            "class b:\n  def __init__(self):\n    self.a = a",
+            &mut scope,
+        )?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_class_dependencies_inheritance() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("class a:\n  def __init__(self): pass", &mut scope)?;
+        let mut cell_2 =
+            Cell::new_reactive("class b(a):\n  def __init__(self):\n    pass", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
