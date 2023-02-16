@@ -263,7 +263,6 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
             }
-            _ => warn!("Unsupported expr node: {:#?}", node),
         }
     }
 
