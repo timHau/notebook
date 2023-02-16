@@ -238,8 +238,11 @@ impl Cell {
             | ExprKind::Attribute { value, .. }
             | ExprKind::Starred { value, .. } => self.handle_expr_node(&value.node, scope),
 
-            ExprKind::Call { func, .. } => {
+            ExprKind::Call { func, args, .. } => {
                 self.handle_expr_node(&func.node, scope);
+                for arg in args {
+                    self.handle_expr_node(&arg.node, scope)
+                }
             }
 
             ExprKind::Yield { value } => {
@@ -752,6 +755,21 @@ mod tests {
         cell_2.build_dependencies(&mut scope)?;
 
         let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_call_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = lambda x: 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b = a(c)", &mut scope)?;
+        let cell_3 = Cell::new_reactive("c = 1", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string(), cell_3.uuid.to_string()]);
 
         Ok(assert_eq!(cell_2.dependencies, expect))
     }
