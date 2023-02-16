@@ -77,43 +77,7 @@ impl Cell {
         let ast = parser::parse_program(&self.content, "<input>")?;
 
         for statement in ast.iter() {
-            match &statement.node {
-                StmtKind::Import { names } => self.import_dependencies(names, scope),
-                StmtKind::Assign { targets, value, .. } => {
-                    for target in targets {
-                        self.handle_expr_node(&target.node, scope);
-                    }
-                    self.handle_expr_node(&value.node, scope);
-                }
-                StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
-                StmtKind::AugAssign { target, value, .. } => {
-                    self.handle_expr_node(&target.node, scope);
-                    self.handle_expr_node(&value.node, scope);
-                }
-                // StmtKind::FunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
-                // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
-                // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
-                // StmtKind::Return { value } => todo!(),
-                // StmtKind::Delete { targets } => todo!(),
-                // StmtKind::AnnAssign { target, annotation, value, simple } => todo!(),
-                // StmtKind::For { target, iter, body, orelse, type_comment } => todo!(),
-                // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
-                // StmtKind::While { test, body, orelse } => todo!(),
-                // StmtKind::If { test, body, orelse } => todo!(),
-                // StmtKind::With { items, body, type_comment } => todo!(),
-                // StmtKind::AsyncWith { items, body, type_comment } => todo!(),
-                // StmtKind::Match { subject, cases } => todo!(),
-                // StmtKind::Raise { exc, cause } => todo!(),
-                // StmtKind::Try { body, handlers, orelse, finalbody } => todo!(),
-                // StmtKind::Assert { test, msg } => todo!(),
-                // StmtKind::ImportFrom { module, names, level } => todo!(),
-                // StmtKind::Global { names } => todo!(),
-                // StmtKind::Nonlocal { names } => todo!(),
-                StmtKind::Pass => {}
-                StmtKind::Break => {}
-                StmtKind::Continue => {}
-                _ => warn!("Unsupported statement: {:#?}", statement),
-            };
+            self.handle_stmt_node(&statement.node, scope);
         }
 
         Ok(())
@@ -133,8 +97,81 @@ impl Cell {
         }
     }
 
-    fn handle_expr_node(&mut self, node: &ExprKind, scope: &mut Scope) {
-        match node {
+    fn handle_stmt_node(&mut self, statement: &StmtKind, scope: &mut Scope) {
+        match statement {
+            StmtKind::Import { names } => self.import_dependencies(names, scope),
+
+            StmtKind::Assign { targets, value, .. } => {
+                for target in targets {
+                    self.handle_expr_node(&target.node, scope);
+                }
+                self.handle_expr_node(&value.node, scope);
+            }
+
+            StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
+
+            StmtKind::AugAssign { target, value, .. } => {
+                self.handle_expr_node(&target.node, scope);
+                self.handle_expr_node(&value.node, scope);
+            }
+
+            StmtKind::Return { value } => {
+                if let Some(value) = value {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
+
+            StmtKind::If { test, body, orelse } => {
+                self.handle_expr_node(&test.node, scope);
+                for statement in body {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+                for statement in orelse {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+            }
+
+            // StmtKind::Match { subject, cases } => {
+            //     self.handle_expr_node(&subject.node, scope);
+            //     for case in cases {
+            //         self.handle_expr_node(&case.pattern.node, scope);
+            //         self.handle_expr_node(&case.guard.node, scope);
+            //         for statement in &case.body {
+            //             self.handle_stmt_node(&statement.node, scope);
+            //         }
+            //     }
+            // }
+            StmtKind::FunctionDef { name, body, .. } => {
+                scope.insert(name.to_string(), self.uuid.clone());
+                for statement in body {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+            }
+
+            // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
+            // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
+            // StmtKind::Delete { targets } => todo!(),
+            // StmtKind::AnnAssign { target, annotation, value, simple } => todo!(),
+            // StmtKind::For { target, iter, body, orelse, type_comment } => todo!(),
+            // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
+            // StmtKind::While { test, body, orelse } => todo!(),
+            // StmtKind::With { items, body, type_comment } => todo!(),
+            // StmtKind::AsyncWith { items, body, type_comment } => todo!(),
+            // StmtKind::Raise { exc, cause } => todo!(),
+            // StmtKind::Try { body, handlers, orelse, finalbody } => todo!(),
+            // StmtKind::Assert { test, msg } => todo!(),
+            // StmtKind::ImportFrom { module, names, level } => todo!(),
+            // StmtKind::Global { names } => todo!(),
+            StmtKind::Nonlocal { .. } => {}
+            StmtKind::Pass => {}
+            StmtKind::Break => {}
+            StmtKind::Continue => {}
+            _ => warn!("Unsupported statement: {:#?}", statement),
+        };
+    }
+
+    fn handle_expr_node(&mut self, expr: &ExprKind, scope: &mut Scope) {
+        match expr {
             ExprKind::Name { id, ctx } => self.handle_name_dep(id, ctx, scope),
 
             ExprKind::BinOp { left, right, .. } => {
@@ -897,6 +934,20 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("b += a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_fndef_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("def b(c, d): return a", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
