@@ -5,6 +5,7 @@ use std::{
     collections::{HashMap, VecDeque},
     error::Error,
 };
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
@@ -79,6 +80,36 @@ impl Topology {
             None => return Err(Box::new(TopologyErrors::CellNotFound)),
         };
 
+        // let mut dependents = Vec::with_capacity(cell.dependents.len());
+        // for uuid in cell.dependents.clone().iter() {
+        //     let dependent = match cells.get(uuid) {
+        //         Some(dependent) => dependent,
+        //         None => return Err(Box::new(TopologyErrors::CellNotFound)),
+        //     };
+
+        //     dependents.push(dependent);
+        // }
+        // dependents.push(cell);
+
+        // let update_topology = Topology {
+        //     cells: dependents
+        //         .clone()
+        //         .into_iter()
+        //         .map(|c| (c.uuid.clone(), c.clone()))
+        //         .collect(),
+        //     display_order: dependents.clone().iter().map(|c| c.uuid.clone()).collect(),
+        // };
+
+        // println!("update_topology: {:#?}", update_topology);
+
+        // let sorted = update_topology.topological_sort()?;
+
+        // if sorted.len() > 0 {
+        // for uuid in sorted.iter() {
+        //     self.eval_cell(kernel, uuid)?;
+        // }
+        info!("TODO update topology");
+        // } else {
         let mut dependencies = Vec::with_capacity(cell.dependencies.len());
         for uuid in cell.dependencies.clone().iter() {
             let dependency = match cells.get(uuid) {
@@ -88,9 +119,8 @@ impl Topology {
 
             dependencies.push(dependency);
         }
-
         kernel.eval(cell, &dependencies);
-
+        // }
         Ok(())
     }
 

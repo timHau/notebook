@@ -40,13 +40,13 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
     let mut notebook = state.open_notebooks.lock().unwrap();
     let notebook = match notebook.get_mut(&notebook_uuid) {
         Some(notebook) => notebook,
-        None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
+        None => return HttpResponse::NotFound().json(json!({ "status": "Notebook not found" })),
     };
 
     let mut nb = notebook.clone();
     let cell = match nb.get_cell_mut(&cell_uuid) {
         Some(cell) => cell,
-        None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
+        None => return HttpResponse::NotFound().json(json!({ "status": "Cell not found" })),
     };
 
     info!("Evaluating cell: {:#?}", cell);

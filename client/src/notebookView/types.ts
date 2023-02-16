@@ -1,30 +1,31 @@
 export type Cell = {
     metadata: {
-        collapsed: Boolean;
+        collapsed: boolean;
     };
-    uuid: String;
-    cell_type: String;
-    content: String;
-    pos: Number;
-    dependencies: [String];
+    uuid: string;
+    cell_type: string;
+    content: string;
+    pos: number;
+    dependencies: [string];
 };
 
 export type Notebook = {
-    uuid: String;
+    uuid: string;
     language_info?: {
-        name: String;
-        version: String;
-        file_extension: String;
+        name: string;
+        version: string;
+        file_extension: string;
     };
     meta_data: {
-        format_version: String;
+        format_version: string;
     };
     topology: {
         cells: {
             [key: string]: Cell;
         },
-        display_order: [String];
+        display_order: [string];
     };
+    title: string;
 };
 
 
@@ -34,4 +35,5 @@ export type NotebookProps = {
 
 export type CellProps = {
     cell: Cell;
+    notebookUuid: string;
 }

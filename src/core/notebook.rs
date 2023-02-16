@@ -32,6 +32,7 @@ pub struct Notebook {
     language_info: LanguageInfo,
     meta_data: NotebookMetadata,
     topology: Topology,
+    title: String,
 
     #[serde(skip)]
     kernel: Kernel,
@@ -64,6 +65,7 @@ impl Notebook {
                 file_extension: String::from(".py"),
             },
             topology,
+            title: String::from("Untitled Notebook"),
         }
     }
 
