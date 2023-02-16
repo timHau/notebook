@@ -20,6 +20,19 @@ impl Topology {
         }
     }
 
+    pub fn from_vec(cells: Vec<&Cell>, scope: &mut Scope) -> Result<Self, Box<dyn Error>> {
+        let mut topology = Topology::new();
+        for cell in cells {
+            topology.display_order.push(cell.uuid.clone());
+            topology.cells.insert(cell.uuid.clone(), cell.clone());
+        }
+        topology.build(scope)?;
+
+        let _sorted = topology.topological_sort()?;
+
+        Ok(topology)
+    }
+
     fn build_dependencies(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
         for cell in self.cells.values_mut() {
             cell.build_dependencies(scope)?;
@@ -41,9 +54,19 @@ impl Topology {
         Ok(())
     }
 
-    pub fn add_cell(&mut self, cell: &Cell) {
+    pub fn add_cell(&mut self, cell: &Cell, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
         self.display_order.push(cell.uuid.clone()); // TODO should be possible to add cell anywhere
+
+        let mut next_topo = self.clone();
+        next_topo.cells.insert(cell.uuid.clone(), cell.clone());
+        next_topo.build(scope)?;
+
+        println!("next_topo: {:#?}", next_topo);
+
+        let _sorted = next_topo.topological_sort()?;
+
         self.cells.insert(cell.uuid.clone(), cell.clone());
+        self.build(scope)
     }
 
     pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
@@ -72,20 +95,7 @@ impl Topology {
 
         Ok(())
     }
-}
 
-impl From<Vec<&Cell>> for Topology {
-    fn from(cells: Vec<&Cell>) -> Self {
-        let mut topology = Topology::new();
-        for cell in cells {
-            topology.add_cell(cell);
-            topology.display_order.push(cell.uuid.clone());
-        }
-        topology
-    }
-}
-
-impl Topology {
     fn topological_sort(&self) -> Result<Vec<String>, Box<dyn Error>> {
         let mut sorted = vec![];
 
@@ -116,7 +126,6 @@ impl Topology {
         while !queue.is_empty() {
             let cell = queue.pop_front().unwrap();
             sorted.push(cell.uuid.clone());
-            eprintln!("sorted: {:#?}", cell);
 
             for dep_uuid in cell.dependents.clone().iter() {
                 let degree = in_degree.get_mut(dep_uuid).unwrap();
@@ -153,8 +162,8 @@ mod tests {
         let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
         let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
 
-        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2]);
-        topology.build(&mut scope).unwrap();
+        let mut topology =
+            Topology::from_vec(vec![&code_cell_1, &code_cell_2], &mut scope).unwrap();
 
         let sorted = topology.topological_sort().unwrap();
         let expect = vec![code_cell_1.uuid.clone(), code_cell_2.uuid.clone()];
@@ -168,8 +177,8 @@ mod tests {
         let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 4", &mut scope).unwrap();
 
-        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3]);
-        topology.build(&mut scope).unwrap();
+        let mut topology =
+            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
 
         let sorted = topology.topological_sort().unwrap();
         assert_eq!(sorted.last(), Some(&code_cell_2.uuid));
@@ -183,13 +192,29 @@ mod tests {
         let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
         let code_cell_4 = Cell::new_reactive("d = 4", &mut scope).unwrap();
 
-        let mut topology =
-            Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4]);
-        topology.build(&mut scope).unwrap();
+        let mut topology = Topology::from_vec(
+            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            &mut scope,
+        )
+        .unwrap();
 
         let sorted = topology.topological_sort().unwrap();
         assert_eq!(sorted.last(), Some(&code_cell_2.uuid));
         assert_eq!(sorted.get(2).unwrap(), &code_cell_3.uuid.clone());
+    }
+
+    #[test]
+    fn test_topo_sort_4_add_cell() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
+
+        let mut topology =
+            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
+
+        let sorted = topology.topological_sort().unwrap();
+        assert_eq!(sorted.last(), Some(&code_cell_2.uuid));
     }
 
     #[test]
@@ -200,12 +225,27 @@ mod tests {
         let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
         let code_cell_4 = Cell::new_reactive("d = b", &mut scope).unwrap();
 
-        let mut topology =
-            Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4]);
-        topology.build(&mut scope).unwrap();
+        let topology = Topology::from_vec(
+            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            &mut scope,
+        );
+        assert!(topology.is_err());
+        assert!(topology.err().unwrap().is::<TopologyErrors>());
+    }
 
-        let sorted = topology.topological_sort();
-        assert!(sorted.is_err());
-        assert!(sorted.err().unwrap().is::<TopologyErrors>());
+    #[test]
+    fn test_cycle_build_should_fail() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
+        let code_cell_4 = Cell::new_reactive("d = b", &mut scope).unwrap();
+
+        let topology = Topology::from_vec(
+            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            &mut scope,
+        );
+        assert!(topology.is_err());
+        assert!(topology.err().unwrap().is::<TopologyErrors>());
     }
 }

@@ -1,4 +1,4 @@
-use super::cell::{Cell, Dependencies};
+use super::cell::Cell;
 use pyo3::{prelude::*, types::PyDict};
 
 #[derive(Debug, Clone)]

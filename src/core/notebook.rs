@@ -48,7 +48,8 @@ impl Notebook {
         let code_cell_2 = Cell::new_reactive("b = 2", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 
-        let mut topology = Topology::from(vec![&code_cell_1, &code_cell_2, &code_cell_3]);
+        let mut topology =
+            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
         topology.build(&mut scope).unwrap();
 
         let version = kernel.version.clone();

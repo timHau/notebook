@@ -369,8 +369,8 @@ impl Cell {
                 }
             }
             ExprContext::Store => {
+                // Given cell 1) a = 1 and cell 2) while True:\n  a += 1,
                 if let Some(dep) = scope.get(id) {
-                    // Given cell 1) a = 1 and cell 2) while True:\n  a += 1,
                     if dep != &self.uuid {
                         self.dependencies.insert(dep.to_string());
                     }
@@ -396,9 +396,8 @@ pub enum CellType {
 
 #[cfg(test)]
 mod tests {
-    use crate::core::topology::Topology;
-
     use super::*;
+    use crate::core::topology::Topology;
     use std::error::Error;
 
     #[test]
@@ -964,7 +963,7 @@ mod tests {
         let cell_1 = Cell::new_reactive("a = b + 1", &mut scope)?;
         let cell_2 = Cell::new_reactive("b = 1", &mut scope)?;
 
-        let mut topology = Topology::from(vec![&cell_1, &cell_2]);
+        let mut topology = Topology::from_vec(vec![&cell_1, &cell_2], &mut scope)?;
         topology.build(&mut scope)?;
 
         let expect = HashSet::from([cell_1.uuid.to_string()]);
@@ -980,7 +979,7 @@ mod tests {
         let cell_2 = Cell::new_reactive("b = 1", &mut scope)?;
         let cell_3 = Cell::new_reactive("c = 2", &mut scope)?;
 
-        let mut topology = Topology::from(vec![&cell_1, &cell_2, &cell_3]);
+        let mut topology = Topology::from_vec(vec![&cell_1, &cell_2, &cell_3], &mut scope)?;
         topology.build(&mut scope)?;
 
         let expect = HashSet::from([cell_1.uuid.to_string()]);
