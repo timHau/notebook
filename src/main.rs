@@ -24,8 +24,10 @@ async fn main() -> std::io::Result<()> {
         .parse::<u16>()
         .expect("PORT must be a number");
 
+    let data = Data::new(State::new());
+
     info!("Starting server on port {}", port);
-    HttpServer::new(|| {
+    HttpServer::new(move || {
         let cors = Cors::default()
             .allowed_origin("http://localhost:5173")
             .allowed_methods(vec!["GET", "POST"])
@@ -34,7 +36,7 @@ async fn main() -> std::io::Result<()> {
             .max_age(3600);
 
         App::new()
-            .app_data(Data::new(State::new()))
+            .app_data(Data::clone(&data))
             .wrap(cors)
             .wrap(actix_web::middleware::Logger::new(
                 "Router: %r, Status: %s, Time: %Dms",
