@@ -1,18 +1,19 @@
-use super::notebook::Scope;
-use crate::core::cell::Cell;
-use core::fmt;
+use super::{kernel::Kernel, notebook::Scope};
+use crate::core::{cell::Cell, errors::TopologyErrors};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
     pub cells: HashMap<String, Cell>,
+    pub display_order: Vec<String>,
 }
 
 impl Topology {
     pub fn new() -> Self {
         Self {
             cells: HashMap::new(),
+            display_order: Vec::new(),
         }
     }
 
@@ -44,6 +45,17 @@ impl Topology {
     pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
         self.cells.get_mut(uuid)
     }
+
+    pub fn eval_cell(&mut self, kernel: &mut Kernel, uuid: &str) -> Result<(), Box<dyn Error>> {
+        let cell = match self.cells.get_mut(uuid) {
+            Some(cell) => cell,
+            None => return Err(Box::new(TopologyErrors::CellNotFound)),
+        };
+
+        kernel.eval(cell);
+
+        Ok(())
+    }
 }
 
 impl From<Vec<&Cell>> for Topology {
@@ -51,6 +63,7 @@ impl From<Vec<&Cell>> for Topology {
         let mut topology = Topology::new();
         for cell in cells {
             topology.add_cell(cell);
+            topology.display_order.push(cell.uuid.clone());
         }
         topology
     }
@@ -68,17 +81,6 @@ enum TopoMark {
     TempMark,
     PermMark,
 }
-
-#[derive(Debug)]
-struct CycleError;
-
-impl fmt::Display for CycleError {
-    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Cycle detected")
-    }
-}
-
-impl Error for CycleError {}
 
 impl Topology {
     fn topological_sort(&self) -> Result<Vec<String>, Box<dyn Error>> {
@@ -108,7 +110,7 @@ impl Topology {
     ) -> Result<(), Box<dyn Error>> {
         // match node.mark {
         //     TopoMark::PermMark => Ok(()),
-        //     TopoMark::TempMark => Err(Box::new(CycleError)),
+        //     TopoMark::TempMark => Err(Box::new(CycleDetectedError)),
         //     TopoMark::Unmarked => {
         //         node.mark = TopoMark::TempMark;
 

@@ -1,3 +1,4 @@
+use super::cell::Cell;
 use pyo3::{prelude::*, types::PyDict};
 
 #[derive(Debug, Clone)]
@@ -20,9 +21,14 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&mut self, code: &str, locals: &mut Py<PyDict>) {
+    pub fn eval(&mut self, cell: &mut Cell) {
         Python::with_gil(|py| {
-            match py.run(code, Some(self.globals.as_ref(py)), Some(locals.as_ref(py))) {
+            let locals = cell.locals.clone().unwrap();
+            match py.run(
+                &cell.content,
+                Some(self.globals.as_ref(py)),
+                Some(locals.as_ref(py)),
+            ) {
                 Ok(res) => println!("Success with result: {:?}", res),
                 Err(e) => println!("Error: {}", e),
             };

@@ -11,10 +11,9 @@ function App() {
       try {
         const notebook = await Api.getNotebook();
         setNotebook(notebook);
-        // const testCell = Object.values(notebook.topology.cells).filter((c: any) => {
-        //   return c.pos === 0;
-        // })[0] as any;
-        // await Api.evalCell(notebook.uuid, testCell.uuid);
+        let firstCellUuid = notebook.topology.display_order[0];
+        let firstCell = notebook.topology.cells[firstCellUuid];
+        await Api.evalCell(notebook.uuid, firstCell.uuid);
       } catch (error) {
         console.log(error);
       }

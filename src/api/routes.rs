@@ -17,7 +17,7 @@ pub async fn index(state: web::Data<State>) -> impl Responder {
 
     let kernel = state.kernel.lock().unwrap();
     let notebook = Notebook::new(kernel.clone());
-    info!("{:#?}", notebook);
+    // info!("{:#?}", notebook);
     open_notebooks.insert(notebook.uuid.clone(), notebook.clone());
 
     HttpResponse::Ok().json(notebook)
@@ -48,6 +48,15 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         Some(cell) => cell,
         None => return HttpResponse::NotFound().json(json!({ "status": "not found" })),
     };
+
+    info!("Evaluating cell: {:#?}", cell);
+    match notebook.eval_cell(&cell.uuid) {
+        Ok(_) => (),
+        Err(e) => {
+            return HttpResponse::InternalServerError()
+                .json(json!({ "status": "error", "message": e.to_string() }))
+        }
+    }
 
     HttpResponse::Ok().json(json!({ "status": "ok" }))
 }

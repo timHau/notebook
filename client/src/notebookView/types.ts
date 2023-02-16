@@ -22,7 +22,8 @@ export type Notebook = {
     topology: {
         cells: {
             [key: string]: Cell;
-        }
+        },
+        display_order: [String];
     };
 };
 

@@ -25,7 +25,7 @@ pub struct Cell {
     pub dependents: Dependencies,
 
     #[serde(skip)]
-    locals: Option<Py<PyDict>>,
+    pub locals: Option<Py<PyDict>>,
 }
 
 impl Cell {
