@@ -44,7 +44,7 @@ impl Notebook {
         let mut scope = Scope::default();
         // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
         // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope, 0).unwrap();
-        let code_cell_1 = Cell::new_reactive("a = 2", &mut scope).unwrap();
+        let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
         let code_cell_2 = Cell::new_reactive("b = 2", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 

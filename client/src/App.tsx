@@ -12,7 +12,10 @@ function App() {
         const notebook = await Api.getNotebook();
         setNotebook(notebook);
         let firstCellUuid = notebook.topology.display_order[0];
+        let secondCellUuid = notebook.topology.display_order[1];
         let firstCell = notebook.topology.cells[firstCellUuid];
+        let secondCell = notebook.topology.cells[secondCellUuid];
+        await Api.evalCell(notebook.uuid, secondCell.uuid);
         await Api.evalCell(notebook.uuid, firstCell.uuid);
       } catch (error) {
         console.log(error);

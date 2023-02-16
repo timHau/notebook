@@ -119,7 +119,7 @@ impl Cell {
         Ok(())
     }
 
-    fn import_dependencies(&mut self, names: &Vec<Located<AliasData>>, scope: &mut Scope) {
+    fn import_dependencies(&mut self, names: &[Located<AliasData>], scope: &mut Scope) {
         info!("Import statement: {:#?}", names);
         for name in names {
             if let Some(alias) = &name.node.asname {

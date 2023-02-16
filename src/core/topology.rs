@@ -47,12 +47,25 @@ impl Topology {
     }
 
     pub fn eval_cell(&mut self, kernel: &mut Kernel, uuid: &str) -> Result<(), Box<dyn Error>> {
+        let cells = self.cells.clone();
+
         let cell = match self.cells.get_mut(uuid) {
             Some(cell) => cell,
             None => return Err(Box::new(TopologyErrors::CellNotFound)),
         };
 
-        kernel.eval(cell);
+        let mut dependencies = Vec::with_capacity(cell.dependencies.len());
+        for dep_uuid in cell.dependencies.clone().iter() {
+            let dep_cell = match cells.get(dep_uuid) {
+                Some(dep_cell) => dep_cell,
+                None => return Err(Box::new(TopologyErrors::CellNotFound)),
+            };
+
+            let locals = dep_cell.locals.clone();
+            dependencies.push(locals.unwrap());
+        }
+
+        kernel.eval(cell, &dependencies);
 
         Ok(())
     }
