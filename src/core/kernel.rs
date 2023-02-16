@@ -26,10 +26,9 @@ impl Kernel {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
 
-            for dep in dependencies.iter() {
-                let dep_locals = dep.locals.clone().unwrap();
-                let dep = dep_locals.as_ref(py).as_mapping();
-                locals.update(dep).unwrap();
+            for dependency in dependencies.iter() {
+                let dep_locals = dependency.locals.clone().unwrap();
+                locals.update(dep_locals.as_ref(py).as_mapping()).unwrap();
             }
 
             match py.run(&cell.content, Some(self.globals.as_ref(py)), Some(locals)) {

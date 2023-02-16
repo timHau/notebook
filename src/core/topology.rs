@@ -61,9 +61,7 @@ impl Topology {
         next_topo.cells.insert(cell.uuid.clone(), cell.clone());
         next_topo.build(scope)?;
 
-        println!("next_topo: {:#?}", next_topo);
-
-        let _sorted = next_topo.topological_sort()?;
+        let _ = next_topo.topological_sort()?;
 
         self.cells.insert(cell.uuid.clone(), cell.clone());
         self.build(scope)
@@ -82,13 +80,13 @@ impl Topology {
         };
 
         let mut dependencies = Vec::with_capacity(cell.dependencies.len());
-        for dep_uuid in cell.dependencies.clone().iter() {
-            let dep_cell = match cells.get(dep_uuid) {
-                Some(dep_cell) => dep_cell,
+        for uuid in cell.dependencies.clone().iter() {
+            let dependency = match cells.get(uuid) {
+                Some(dependency) => dependency,
                 None => return Err(Box::new(TopologyErrors::CellNotFound)),
             };
 
-            dependencies.push(dep_cell);
+            dependencies.push(dependency);
         }
 
         kernel.eval(cell, &dependencies);
@@ -127,17 +125,16 @@ impl Topology {
             let cell = queue.pop_front().unwrap();
             sorted.push(cell.uuid.clone());
 
-            for dep_uuid in cell.dependents.clone().iter() {
-                let degree = in_degree.get_mut(dep_uuid).unwrap();
+            for dependency_uuid in cell.dependents.clone().iter() {
+                let degree = in_degree.get_mut(dependency_uuid).unwrap();
                 *degree -= 1;
 
                 if *degree == 0 {
-                    let dep_cell = match cells.get(dep_uuid) {
-                        Some(dep_cell) => dep_cell,
+                    let dependency = match cells.get(dependency_uuid) {
+                        Some(dependency) => dependency,
                         None => return Err(Box::new(TopologyErrors::CellNotFound)),
                     };
-                    let dep_node = dep_cell;
-                    queue.push_back(dep_node);
+                    queue.push_back(dependency);
                 }
             }
 

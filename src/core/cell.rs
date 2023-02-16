@@ -54,9 +54,9 @@ impl Cell {
     }
 
     pub fn build_dependents(&self, cells: &mut HashMap<String, Cell>) {
-        for dep in self.dependencies.iter() {
-            if let Some(dep_cell) = cells.get_mut(dep) {
-                dep_cell.dependents.insert(self.uuid.clone());
+        for uuid in self.dependencies.iter() {
+            if let Some(dependency) = cells.get_mut(uuid) {
+                dependency.dependents.insert(self.uuid.clone());
             }
         }
     }
