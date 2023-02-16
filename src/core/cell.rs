@@ -86,10 +86,10 @@ impl Cell {
                     self.handle_expr_node(&value.node, scope);
                 }
                 StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
-                // StmtKind::AugAssign { target, value, .. } => {
-                //     self.handle_expr_node(&target.node, scope);
-                //     self.handle_expr_node(&value.node, scope);
-                // }
+                StmtKind::AugAssign { target, value, .. } => {
+                    self.handle_expr_node(&target.node, scope);
+                    self.handle_expr_node(&value.node, scope);
+                }
                 // StmtKind::FunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
                 // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
                 // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
@@ -889,5 +889,19 @@ mod tests {
         let c_3 = topology.cells.get(&cell_3.uuid).unwrap();
         assert_eq!(c_2.dependents, expect);
         Ok(assert_eq!(c_3.dependents, expect))
+    }
+
+    #[test]
+    fn test_augassign_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b += a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
     }
 }
