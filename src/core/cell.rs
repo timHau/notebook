@@ -141,20 +141,58 @@ impl Cell {
             //         }
             //     }
             // }
-            StmtKind::FunctionDef { name, body, .. } => {
+            StmtKind::FunctionDef { name, body, .. }
+            | StmtKind::AsyncFunctionDef { name, body, .. } => {
                 scope.insert(name.to_string(), self.uuid.clone());
                 for statement in body {
                     self.handle_stmt_node(&statement.node, scope);
                 }
             }
 
-            // StmtKind::AsyncFunctionDef { name, args, body, decorator_list, returns, type_comment } => todo!(),
+            StmtKind::AnnAssign {
+                target,
+                annotation,
+                value,
+                ..
+            } => {
+                self.handle_expr_node(&target.node, scope);
+                self.handle_expr_node(&annotation.node, scope);
+                if let Some(value) = value {
+                    self.handle_expr_node(&value.node, scope);
+                }
+            }
+
+            StmtKind::While { test, body, orelse } => {
+                println!("statement: {:#?}", statement);
+                self.handle_expr_node(&test.node, scope);
+                for statement in body {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+                for statement in orelse {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+            }
+
+            StmtKind::For {
+                target,
+                iter,
+                body,
+                orelse,
+                ..
+            } => {
+                self.handle_expr_node(&target.node, scope);
+                self.handle_expr_node(&iter.node, scope);
+                for statement in body {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+                for statement in orelse {
+                    self.handle_stmt_node(&statement.node, scope);
+                }
+            }
+
             // StmtKind::ClassDef { name, bases, keywords, body, decorator_list } => todo!(),
             // StmtKind::Delete { targets } => todo!(),
-            // StmtKind::AnnAssign { target, annotation, value, simple } => todo!(),
-            // StmtKind::For { target, iter, body, orelse, type_comment } => todo!(),
             // StmtKind::AsyncFor { target, iter, body, orelse, type_comment } => todo!(),
-            // StmtKind::While { test, body, orelse } => todo!(),
             // StmtKind::With { items, body, type_comment } => todo!(),
             // StmtKind::AsyncWith { items, body, type_comment } => todo!(),
             // StmtKind::Raise { exc, cause } => todo!(),
@@ -313,6 +351,12 @@ impl Cell {
                 }
             }
             ExprContext::Store => {
+                if let Some(dep) = scope.get(id) {
+                    // Given cell 1) a = 1 and cell 2) while True:\n  a += 1,
+                    if dep != &self.uuid {
+                        self.dependencies.insert(dep.to_string());
+                    }
+                }
                 scope.insert(id.to_string(), self.uuid.clone());
             }
             ExprContext::Del => {}
@@ -948,6 +992,104 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let mut cell_2 = Cell::new_reactive("def b(c, d): return a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_asyncfndef_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("async def b(c, d): return a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_annassign_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("b: int = a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_while_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("while a: pass", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_while_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("while True:\n  a += 1", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_forloop_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = [1, 2, 3]", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("for i in a: pass", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_forloop_dependencies_2() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = [1, 2, 3]", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("for i in [4,5,6]: a", &mut scope)?;
+
+        cell_2.build_dependencies(&mut scope)?;
+
+        let expect = HashSet::from([cell_1.uuid.to_string()]);
+
+        Ok(assert_eq!(cell_2.dependencies, expect))
+    }
+
+    #[test]
+    fn test_forloop_dependencies_3() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("a = [1, 2, 3]", &mut scope)?;
+        let mut cell_2 = Cell::new_reactive("for i in [4,5,6]:\n  for j in a: j", &mut scope)?;
 
         cell_2.build_dependencies(&mut scope)?;
 
