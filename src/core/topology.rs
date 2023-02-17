@@ -1,11 +1,10 @@
-use super::{kernel::Kernel, notebook::Scope};
+use super::notebook::Scope;
 use crate::core::{cell::Cell, errors::TopologyErrors};
 use serde::{Deserialize, Serialize};
 use std::{
     collections::{HashMap, VecDeque},
     error::Error,
 };
-use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Topology {
@@ -29,7 +28,7 @@ impl Topology {
         }
         topology.build(scope)?;
 
-        let _sorted = topology.topological_sort()?;
+        let _ = topology.topological_sort()?; // check for cycles
 
         Ok(topology)
     }
@@ -55,73 +54,36 @@ impl Topology {
         Ok(())
     }
 
-    pub fn add_cell(&mut self, cell: &Cell, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
-        self.display_order.push(cell.uuid.clone()); // TODO should be possible to add cell anywhere
-
-        let mut next_topo = self.clone();
-        next_topo.cells.insert(cell.uuid.clone(), cell.clone());
-        next_topo.build(scope)?;
-
-        let _ = next_topo.topological_sort()?;
-
-        self.cells.insert(cell.uuid.clone(), cell.clone());
-        self.build(scope)
-    }
-
     pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
         self.cells.get_mut(uuid)
     }
 
-    pub fn eval_cell(&mut self, kernel: &mut Kernel, uuid: &str) -> Result<(), Box<dyn Error>> {
-        let cells = self.cells.clone();
-
-        let cell = match self.cells.get_mut(uuid) {
+    pub fn get_execution_seq(
+        &self,
+        cell_uuid: &str,
+        scope: &mut Scope,
+    ) -> Result<Vec<String>, Box<dyn Error>> {
+        let cell = match self.cells.get(cell_uuid) {
             Some(cell) => cell,
             None => return Err(Box::new(TopologyErrors::CellNotFound)),
         };
 
-        // let mut dependents = Vec::with_capacity(cell.dependents.len());
-        // for uuid in cell.dependents.clone().iter() {
-        //     let dependent = match cells.get(uuid) {
-        //         Some(dependent) => dependent,
-        //         None => return Err(Box::new(TopologyErrors::CellNotFound)),
-        //     };
+        let dependencies = cell.dependencies.clone();
 
-        //     dependents.push(dependent);
-        // }
-        // dependents.push(cell);
-
-        // let update_topology = Topology {
-        //     cells: dependents
-        //         .clone()
-        //         .into_iter()
-        //         .map(|c| (c.uuid.clone(), c.clone()))
-        //         .collect(),
-        //     display_order: dependents.clone().iter().map(|c| c.uuid.clone()).collect(),
-        // };
-
-        // println!("update_topology: {:#?}", update_topology);
-
-        // let sorted = update_topology.topological_sort()?;
-
-        // if sorted.len() > 0 {
-        // for uuid in sorted.iter() {
-        //     self.eval_cell(kernel, uuid)?;
-        // }
-        info!("TODO update topology");
-        // } else {
-        let mut dependencies = Vec::with_capacity(cell.dependencies.len());
-        for uuid in cell.dependencies.clone().iter() {
-            let dependency = match cells.get(uuid) {
-                Some(dependency) => dependency,
+        let mut nodes = Vec::with_capacity(dependencies.len());
+        for dependency in dependencies {
+            let cell = match self.cells.get(&dependency) {
+                Some(cell) => cell,
                 None => return Err(Box::new(TopologyErrors::CellNotFound)),
             };
-
-            dependencies.push(dependency);
+            nodes.push(cell);
         }
-        kernel.eval(cell, &dependencies);
-        // }
-        Ok(())
+        nodes.push(cell);
+
+        let update_topology = Self::from_vec(nodes, scope)?;
+        let sorted = update_topology.topological_sort()?;
+
+        Ok(sorted)
     }
 
     fn topological_sort(&self) -> Result<Vec<String>, Box<dyn Error>> {
@@ -274,5 +236,27 @@ mod tests {
         );
         assert!(topology.is_err());
         assert!(topology.err().unwrap().is::<TopologyErrors>());
+    }
+
+    #[test]
+    fn test_execution_seq() {
+        let mut scope = HashMap::new();
+        let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("c = 3", &mut scope).unwrap();
+        let code_cell_4 = Cell::new_reactive("d = 4", &mut scope).unwrap();
+
+        let mut topology = Topology::from_vec(
+            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            &mut scope,
+        )
+        .unwrap();
+
+        let execution_seq = topology
+            .get_execution_seq(&code_cell_2.uuid, &mut scope)
+            .unwrap();
+
+        assert_eq!(execution_seq.len(), 3);
+        assert_eq!(execution_seq.last().unwrap(), &code_cell_2.uuid);
     }
 }

@@ -49,7 +49,7 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "Cell not found" })),
     };
 
-    match notebook.eval_cell(&cell.uuid) {
+    match notebook.eval_cell(&cell) {
         Ok(_) => (),
         Err(e) => {
             return HttpResponse::InternalServerError()

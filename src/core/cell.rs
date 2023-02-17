@@ -61,11 +61,6 @@ impl Cell {
         }
     }
 
-    // pub fn eval(&mut self, kernel: &mut Kernel) {
-    //     let locals = self.locals.as_mut().unwrap();
-    //     kernel.eval(&self.content, locals);
-    // }
-
     pub fn build_dependencies(&mut self, scope: &mut Scope) -> Result<(), ParseError> {
         match self.cell_type {
             CellType::ReactiveCode | CellType::NonReactiveCode => self.code_dependencies(scope),

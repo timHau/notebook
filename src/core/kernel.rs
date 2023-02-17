@@ -14,7 +14,7 @@ impl Kernel {
             let version = sys.getattr("version").unwrap();
             version.to_string()
         });
-        let version = version_info.split(" ").collect::<Vec<&str>>()[0];
+        let version = version_info.split(' ').collect::<Vec<&str>>()[0];
         Self {
             version: version.to_string(),
             globals: Python::with_gil(|py| PyDict::new(py).into()),

@@ -73,8 +73,8 @@ impl Notebook {
         self.topology.get_cell_mut(cell_uuid)
     }
 
-    pub fn eval_cell(&mut self, cell_uuid: &str) -> Result<(), Box<dyn Error>> {
-        self.topology.eval_cell(&mut self.kernel, cell_uuid)
+    pub fn eval_cell(&mut self, cell: &Cell) -> Result<(), Box<dyn Error>> {
+        Ok(())
     }
 }
 
