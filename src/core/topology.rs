@@ -96,16 +96,24 @@ impl Topology {
             None => return Err(Box::new(TopologyErrors::CellNotFound)),
         };
 
-        let dependents = cell.dependents.clone();
+        let mut nodes = Vec::with_capacity(cell.dependents.len() + cell.dependencies.len() + 1);
 
-        let mut nodes = Vec::with_capacity(dependents.len());
-        for dependent in dependents {
+        for dependent in cell.dependents.clone() {
             let cell = match self.cells.get(&dependent) {
                 Some(cell) => cell,
                 None => return Err(Box::new(TopologyErrors::CellNotFound)),
             };
             nodes.push(cell);
         }
+
+        for dependency in cell.dependencies.clone() {
+            let cell = match self.cells.get(&dependency) {
+                Some(cell) => cell,
+                None => return Err(Box::new(TopologyErrors::CellNotFound)),
+            };
+            nodes.push(cell);
+        }
+
         nodes.push(cell);
 
         let mut update_topology = Self::new();

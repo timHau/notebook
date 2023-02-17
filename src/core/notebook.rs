@@ -44,9 +44,14 @@ pub struct Notebook {
 impl Notebook {
     pub fn new() -> Self {
         let mut scope = Scope::default();
-        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\n\nx = np.arange(0, 4*np.pi, 0.1)\ny = np.sin(x)\nplt.plot(x,y)\n\ndef add(a, b):\n  return a + b"), &mut scope).unwrap();
+        let code_cell_1 = Cell::new(
+            CellType::ReactiveCode,
+            String::from("def add(a, b):\n  return a + b"),
+            &mut scope,
+        )
+        .unwrap();
         // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
-        let code_cell_2 = Cell::new_reactive("b = 2", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("add(1, 2)", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 
         let mut topology =
@@ -89,11 +94,6 @@ impl Notebook {
             .iter()
             .map(|uuid| self.topology.get_cell(uuid).unwrap())
             .collect::<Vec<_>>();
-
-        info!(
-            "Execution sequence: {:?}",
-            execution_seq.iter().map(|c| &c.content).collect::<Vec<_>>()
-        );
 
         for cell in execution_seq {
             let dependencies = self.topology.get_dependencies(&cell.uuid);

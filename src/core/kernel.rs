@@ -1,5 +1,6 @@
 use super::cell::Cell;
 use pyo3::{prelude::*, types::PyDict};
+use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
 pub struct Kernel {
@@ -32,11 +33,11 @@ impl Kernel {
             }
 
             match py.run(&cell.content, Some(self.globals.as_ref(py)), Some(locals)) {
-                Ok(res) => println!("Success with result: {:?}", res),
-                Err(e) => println!("Error: {}", e),
+                Ok(_) => info!("Successcfully evaluated cell"),
+                Err(err) => warn!("Error: {}", err),
             };
 
-            println!("Locals: {:#?}", locals);
+            info!("Locals: {:#?}", locals);
         });
     }
 }
