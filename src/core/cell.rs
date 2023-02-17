@@ -64,7 +64,7 @@ impl Cell {
     pub fn build_dependencies(&mut self, scope: &mut Scope) -> Result<(), ParseError> {
         match self.cell_type {
             CellType::ReactiveCode | CellType::NonReactiveCode => self.code_dependencies(scope),
-            CellType::Markdown => todo!(),
+            CellType::Markdown => Ok(warn!("TODO check Markdown cell")),
         }
     }
 
@@ -126,16 +126,17 @@ impl Cell {
                 }
             }
 
-            // StmtKind::Match { subject, cases } => {
-            //     self.handle_expr_node(&subject.node, scope);
-            //     for case in cases {
-            //         self.handle_expr_node(&case.pattern.node, scope);
-            //         self.handle_expr_node(&case.guard.node, scope);
-            //         for statement in &case.body {
-            //             self.handle_stmt_node(&statement.node, scope);
-            //         }
-            //     }
-            // }
+            StmtKind::Match { subject, cases } => {
+                self.handle_expr_node(&subject.node, scope);
+                for case in cases {
+                    // self.handle_expr_node(&case.pattern.node, scope);
+                    // self.handle_expr_node(&case.guard.node, scope);
+                    for statement in &case.body {
+                        self.handle_stmt_node(&statement.node, scope);
+                    }
+                }
+            }
+
             StmtKind::FunctionDef { name, body, .. }
             | StmtKind::AsyncFunctionDef { name, body, .. } => {
                 scope.insert(name.to_string(), self.uuid.clone());

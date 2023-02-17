@@ -30,15 +30,15 @@ function App() {
     initWs();
   }, []);
 
-  console.log(notebook);
-  console.log(ws);
-
   if (!notebook) {
     return <div>Loading...</div>
   }
 
+  console.log(notebook);
+  console.log(ws);
+
   return (
-    <div className="h-screen dark:bg-slate-800 dark:text-slate-100 flex justify-center">
+    <div className="h-screen dark:bg-zinc-900 dark:text-stone-200 flex justify-center">
       <Notebook notebook={notebook} />
     </div>
   )

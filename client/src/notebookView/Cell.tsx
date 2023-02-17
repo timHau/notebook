@@ -1,6 +1,8 @@
 import { CellProps } from "./types";
 import { RxPlay } from "react-icons/rx";
 import Api from "../utils/api";
+import Highlight, { defaultProps } from "prism-react-renderer";
+import duotoneDark from "prism-react-renderer/themes/duotoneDark";
 
 function Cell(props: CellProps) {
     const { cell, notebookUuid } = props;
@@ -10,12 +12,23 @@ function Cell(props: CellProps) {
     }
 
     return (
-        <div className="flex items-center">
+        <div className="flex items-end my-2">
             <RxPlay className="text-slate-100 mr-1 bg-slate-600 w-8 h-8 hover:bg-slate-700 hover:cursor-pointer" onClick={handleEval} />
-            <div className="w-full bg-slate-600 my-3 px-2 py-1">
-                <code>
-                    {cell.content}
-                </code>
+
+            <div className="w-full">
+                <Highlight {...defaultProps} code={cell.content} language="python" theme={duotoneDark}>
+                    {({ className, style, tokens, getLineProps, getTokenProps }) => (
+                        <pre className={className + " py-2 px-3 text-xs"} style={style}>
+                            {tokens.map((line, i) => (
+                                <div {...getLineProps({ line, key: i })}>
+                                    {line.map((token, key) => (
+                                        <span {...getTokenProps({ token, key })} />
+                                    ))}
+                                </div>
+                            ))}
+                        </pre>
+                    )}
+                </Highlight>
             </div>
         </div>
     )

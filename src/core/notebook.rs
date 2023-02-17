@@ -3,7 +3,7 @@ use crate::core::{cell::Cell, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
-use tracing::info;
+use tracing::{info, warn};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
@@ -44,9 +44,8 @@ pub struct Notebook {
 impl Notebook {
     pub fn new() -> Self {
         let mut scope = Scope::default();
-        // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
-        // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope, 0).unwrap();
-        let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
+        let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\n\nx = np.arange(0, 4*np.pi, 0.1)\ny = np.sin(x)\nplt.plot(x,y)\n\ndef add(a, b):\n  return a + b"), &mut scope).unwrap();
+        // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
         let code_cell_2 = Cell::new_reactive("b = 2", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 
@@ -79,7 +78,7 @@ impl Notebook {
         match cell.cell_type {
             CellType::NonReactiveCode => todo!(),
             CellType::ReactiveCode => self.eval_reactive_cell(cell),
-            CellType::Markdown => todo!(),
+            CellType::Markdown => Ok(()),
         }
     }
 
