@@ -1,4 +1,4 @@
-export type Cell = {
+export type CellT = {
     metadata: {
         collapsed: boolean;
     };
@@ -9,7 +9,7 @@ export type Cell = {
     dependencies: [string];
 };
 
-export type Notebook = {
+export type NotebookT = {
     uuid: string;
     language_info?: {
         name: string;
@@ -21,7 +21,7 @@ export type Notebook = {
     };
     topology: {
         cells: {
-            [key: string]: Cell;
+            [key: string]: CellT;
         },
         display_order: [string];
     };
@@ -34,6 +34,6 @@ export type NotebookProps = {
 }
 
 export type CellProps = {
-    cell: Cell;
+    cell: CellT;
     notebookUuid: string;
 }

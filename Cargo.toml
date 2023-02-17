@@ -4,15 +4,17 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-actix-web = "4"
+actix = "0.13"
 actix-cors = "0.6.4"
+actix-web = "4"
+actix-web-actors = "4.2.0"
+dotenv = "0.15.0"
+nanoid = "0.4.0"
+rustpython-parser = "0.2.0"
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
-nanoid = "0.4.0"
-tracing-subscriber = "0.3"
 tracing = "0.1.37"
-rustpython-parser = "0.2.0"
-dotenv = "0.15.0"
+tracing-subscriber = "0.3"
 
 [dependencies.pyo3]
 version = "0.18.1"

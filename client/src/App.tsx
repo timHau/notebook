@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react'
-import Api from './api'
+import Api from './utils/api'
 import Notebook from './notebookView/Notebook';
+import { WsClient, WsClientT } from './utils/ws';
+import { NotebookT } from './notebookView/types';
 
 function App() {
-  const [notebook, setNotebook] = useState<any>(null);
+  const [notebook, setNotebook] = useState<NotebookT>();
+  const [ws, setWs] = useState<WsClientT>();
 
   useEffect(() => {
-    async function fetchNotebook() {
+    async function initNotebook() {
       try {
         const notebook = await Api.getNotebook();
         setNotebook(notebook);
@@ -14,10 +17,22 @@ function App() {
         console.log(error);
       }
     }
-    fetchNotebook();
+    initNotebook();
+
+    async function initWs() {
+      let wsUrl = import.meta.env.VITE_WS_URL;
+      try {
+        setWs(new WsClient(wsUrl));
+      } catch (error) {
+        console.log(error);
+      }
+    }
+    initWs();
   }, []);
 
   console.log(notebook);
+  console.log(ws);
+
   if (!notebook) {
     return <div>Loading...</div>
   }

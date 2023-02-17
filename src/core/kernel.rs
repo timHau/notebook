@@ -8,7 +8,7 @@ pub struct Kernel {
 }
 
 impl Kernel {
-    pub fn start() -> Self {
+    pub fn new() -> Self {
         let version_info = Python::with_gil(move |py| {
             let sys = py.import("sys").unwrap();
             let version = sys.getattr("version").unwrap();
@@ -43,6 +43,6 @@ impl Kernel {
 
 impl Default for Kernel {
     fn default() -> Self {
-        Self::start()
+        Self::new()
     }
 }

@@ -1,4 +1,4 @@
-use super::{cell::CellType, kernel::Kernel, topology};
+use super::{cell::CellType, kernel::Kernel};
 use crate::core::{cell::Cell, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
@@ -42,7 +42,7 @@ pub struct Notebook {
 }
 
 impl Notebook {
-    pub fn new(kernel: Kernel) -> Self {
+    pub fn new() -> Self {
         let mut scope = Scope::default();
         // let code_cell_1 = Cell::new(CellType::ReactiveCode, String::from("import matplotlib.pyplot as plt\nimport numpy as np\nx = np.arange(0,4*np.pi,0.1)\ny = np.sin(x)\nplt.plot(x,y)\nplt.show()"), 0);
         // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope, 0).unwrap();
@@ -54,6 +54,7 @@ impl Notebook {
             Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
         topology.build(&mut scope).unwrap();
 
+        let kernel = Kernel::new();
         let version = kernel.version.clone();
         Self {
             uuid: nanoid!(30),

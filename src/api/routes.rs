@@ -1,5 +1,7 @@
+use super::ws::Ws;
 use crate::{api::state::State, core::notebook::Notebook};
-use actix_web::{get, post, web, HttpResponse, Responder};
+use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
+use actix_web_actors::ws;
 use serde::Deserialize;
 use serde_json::json;
 use tracing::info;
@@ -11,13 +13,10 @@ pub async fn index(state: web::Data<State>) -> impl Responder {
         let notebook = open_notebooks
             .get(&open_notebooks.keys().next().unwrap().clone())
             .unwrap();
-        info!("{:#?}", notebook);
         return HttpResponse::Ok().json(notebook);
     }
 
-    let kernel = state.kernel.lock().unwrap();
-    let notebook = Notebook::new(kernel.clone());
-    // info!("{:#?}", notebook);
+    let notebook = Notebook::new();
     open_notebooks.insert(notebook.uuid.clone(), notebook.clone());
 
     HttpResponse::Ok().json(notebook)
@@ -63,4 +62,18 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
 pub fn notebook_routes(cfg: &mut web::ServiceConfig) {
     cfg.service(index);
     cfg.service(eval);
+}
+
+#[get("/")]
+async fn ws_route(
+    req: HttpRequest,
+    stream: web::Payload,
+) -> Result<HttpResponse, actix_web::Error> {
+    info!("Websocket connection established");
+    let res = ws::start(Ws {}, &req, stream);
+    res
+}
+
+pub fn ws_routes(cfg: &mut web::ServiceConfig) {
+    cfg.service(ws_route);
 }

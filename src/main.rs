@@ -8,8 +8,10 @@ use actix_web::{
     web::{self, Data},
     App, HttpServer,
 };
-use api::routes::notebook_routes;
-use api::state::State;
+use api::{
+    routes::{notebook_routes, ws_routes},
+    state::State,
+};
 use dotenv::dotenv;
 use tracing::info;
 
@@ -22,13 +24,14 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .expect("PORT must be a number");
+    let client_url = std::env::var("CLIENT_URL").expect("CLIENT_URL must be set");
 
     let data = Data::new(State::new());
 
     info!("Starting server on port {}", port);
     HttpServer::new(move || {
         let cors = Cors::default()
-            .allowed_origin("http://localhost:5173")
+            .allowed_origin(&client_url)
             .allowed_methods(vec!["GET", "POST"])
             .allowed_headers(vec![http::header::AUTHORIZATION, http::header::ACCEPT])
             .allowed_header(http::header::CONTENT_TYPE)
@@ -41,6 +44,7 @@ async fn main() -> std::io::Result<()> {
                 "Router: %r, Status: %s, Time: %Dms",
             ))
             .service(web::scope("/api").configure(notebook_routes))
+            .service(web::scope("/ws").configure(ws_routes))
     })
     .bind(("127.0.0.1", port))?
     .run()

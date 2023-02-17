@@ -1,6 +1,6 @@
 import { CellProps } from "./types";
 import { RxPlay } from "react-icons/rx";
-import Api from "../api";
+import Api from "../utils/api";
 
 function Cell(props: CellProps) {
     const { cell, notebookUuid } = props;

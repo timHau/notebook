@@ -190,8 +190,7 @@ mod tests {
         let code_cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
         let code_cell_2 = Cell::new_reactive("b = a + 1", &mut scope).unwrap();
 
-        let mut topology =
-            Topology::from_vec(vec![&code_cell_1, &code_cell_2], &mut scope).unwrap();
+        let topology = Topology::from_vec(vec![&code_cell_1, &code_cell_2], &mut scope).unwrap();
 
         let sorted = topology.topological_sort().unwrap();
         let expect = vec![code_cell_1.uuid.clone(), code_cell_2.uuid.clone()];
@@ -205,7 +204,7 @@ mod tests {
         let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = 4", &mut scope).unwrap();
 
-        let mut topology =
+        let topology =
             Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
 
         let sorted = topology.topological_sort().unwrap();
@@ -220,7 +219,7 @@ mod tests {
         let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
         let code_cell_4 = Cell::new_reactive("d = 4", &mut scope).unwrap();
 
-        let mut topology = Topology::from_vec(
+        let topology = Topology::from_vec(
             vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
             &mut scope,
         )
@@ -238,7 +237,7 @@ mod tests {
         let code_cell_2 = Cell::new_reactive("b = a + c", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("c = d", &mut scope).unwrap();
 
-        let mut topology =
+        let topology =
             Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
 
         let sorted = topology.topological_sort().unwrap();

@@ -1,5 +1,5 @@
 import Cell from "./Cell";
-import { Cell as CellT, NotebookProps } from "./types"
+import { CellT as CellT, NotebookProps } from "./types"
 
 function Notebook(props: NotebookProps) {
     const { notebook } = props;
