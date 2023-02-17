@@ -21,7 +21,7 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&mut self, cell: &mut Cell, dependencies: &[&Cell]) {
+    pub fn eval(&self, cell: &Cell, dependencies: &[&Cell]) {
         Python::with_gil(|py| {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
