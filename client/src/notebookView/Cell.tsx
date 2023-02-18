@@ -1,10 +1,11 @@
 import { CellBindingProps, CellProps } from "../types";
 import { RxPlay } from "react-icons/rx";
 import Api from "../api/api";
-import Highlight, { defaultProps } from "prism-react-renderer";
-import duotoneDark from "prism-react-renderer/themes/duotoneDark";
 import { updateBinding } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
+import Editor from "react-simple-code-editor";
+// @ts-ignore
+import { highlight, languages } from "prismjs/components/prism-core";
 
 function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
@@ -24,6 +25,8 @@ function Cell(props: CellProps) {
         return <div>Loading...</div>
     }
 
+    console.log(languages)
+
     return (
         <div>
             <div className="flex items-end my-2">
@@ -32,19 +35,18 @@ function Cell(props: CellProps) {
                 </div>
 
                 <div className="w-full">
-                    <Highlight {...defaultProps} code={cell.content} language="python" theme={duotoneDark}>
-                        {({ className, style, tokens, getLineProps, getTokenProps }) => (
-                            <pre className={className + " py-2 px-3 text-xs"} style={style}>
-                                {tokens.map((line, i) => (
-                                    <div {...getLineProps({ line, key: i })}>
-                                        {line.map((token, key) => (
-                                            <span {...getTokenProps({ token, key })} />
-                                        ))}
-                                    </div>
-                                ))}
-                            </pre>
-                        )}
-                    </Highlight>
+                    <Editor
+                        value={cell.content}
+                        onValueChange={(code) => console.log(code)}
+                        highlight={(code) => highlight(code, languages.python, 'python')}
+                        padding={10}
+                        style={{
+                            fontFamily: '"Fira code", "Fira Mono", monospace',
+                            fontSize: 12,
+                            backgroundColor: "#1e1e1e",
+                            color: "#d4d4d4",
+                        }}
+                    />
                 </div>
             </div>
             <CellBindings cellUuid={cellUuid} />

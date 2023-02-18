@@ -3,6 +3,8 @@ import App from './App'
 import './index.css'
 import store from './store/store';
 import { Provider } from 'react-redux';
+import "prismjs/components/prism-python";
+import "./assets/themes/prism-duotone-dark.css";
 
 ReactDOM.createRoot(document.getElementById('root') as HTMLElement).render(
   <Provider store={store}>
