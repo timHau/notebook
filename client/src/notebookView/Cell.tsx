@@ -3,6 +3,8 @@ import { RxPlay } from "react-icons/rx";
 import Api from "../utils/api";
 import Highlight, { defaultProps } from "prism-react-renderer";
 import duotoneDark from "prism-react-renderer/themes/duotoneDark";
+import { increment, decrement } from "../store/counterSlice";
+import { useAppDispatch, useAppSelector } from "../store/hooks";
 
 function Cell(props: CellProps) {
     const { cell, notebookUuid } = props;
@@ -11,6 +13,9 @@ function Cell(props: CellProps) {
         const res = await Api.evalCell(notebookUuid, cell.uuid);
         console.log(res);
     }
+
+    const count = useAppSelector((state) => state.counter.value)
+    const dispatch = useAppDispatch()
 
     return (
         <div className="flex items-end my-2">
@@ -30,6 +35,11 @@ function Cell(props: CellProps) {
                         </pre>
                     )}
                 </Highlight>
+            </div>
+            <div>
+                Output: {count}
+                <button onClick={() => dispatch(increment())}>+</button>
+                <button onClick={() => dispatch(decrement())}>-</button>
             </div>
         </div>
     )
