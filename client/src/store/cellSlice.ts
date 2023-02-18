@@ -23,10 +23,12 @@ export const cellsSlice = createSlice({
             }
         },
         updateBinding: (state, action: PayloadAction<BindingT>) => {
-            for (let key in action.payload) {
-                state.bindings[key] = action.payload[key];
+            let cells = action.payload;
+            for (let uuid in action.payload) {
+                state.bindings[uuid] = cells[uuid];
+                state.mappings[uuid].isSynced = true;
             }
-        }
+        },
     },
 });
 

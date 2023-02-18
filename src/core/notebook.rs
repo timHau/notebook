@@ -54,11 +54,15 @@ impl Notebook {
         // .unwrap();
         let code_cell_1 = Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap();
         let code_cell_2 = Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap();
-        // let code_cell_3 = Cell::new_reactive("a = 1 + 2 \\\n + 3 + add(1, 2)", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("add(5, 2)", &mut scope).unwrap();
+        let code_cell_4 =
+            Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap();
 
-        let mut topology =
-            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
+        let mut topology = Topology::from_vec(
+            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            &mut scope,
+        )
+        .unwrap();
         topology.build(&mut scope).unwrap();
 
         let kernel = Kernel::new();

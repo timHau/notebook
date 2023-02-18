@@ -31,6 +31,8 @@ impl Kernel {
         cell: &Cell,
         dependencies: &[&Cell],
     ) -> Result<HashMap<String, String>, Box<dyn Error>> {
+        info!("Evaluating cell: {:#?}", cell);
+
         let res = Python::with_gil(|py| -> PyResult<HashMap<String, String>> {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
@@ -78,8 +80,6 @@ impl Kernel {
                     }
                 }
             }
-
-            info!("Code: {}, Result: {:?}", cell.content, res);
 
             Ok(res)
         })?;

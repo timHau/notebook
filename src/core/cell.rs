@@ -37,6 +37,9 @@ pub struct Cell {
 
     #[serde(skip)]
     pub bindings: HashSet<String>,
+
+    #[serde(skip)]
+    ignore_bindings: HashSet<String>,
 }
 
 impl Cell {
@@ -55,6 +58,7 @@ impl Cell {
             dependents: HashSet::new(),
             statements: Vec::new(),
             bindings: HashSet::new(),
+            ignore_bindings: HashSet::new(),
         };
 
         cell.build_dependencies(scope)?;
@@ -168,8 +172,18 @@ impl Cell {
                 }
             }
 
-            StmtKind::FunctionDef { name, body, .. }
-            | StmtKind::AsyncFunctionDef { name, body, .. } => {
+            StmtKind::FunctionDef {
+                name, body, args, ..
+            }
+            | StmtKind::AsyncFunctionDef {
+                name, body, args, ..
+            } => {
+                for arg in args.args.iter() {
+                    // arguments of a function might be named the same as bindings in another cell
+                    // we do not want to add these to the dependencies
+                    self.ignore_bindings.insert(arg.node.arg.to_string());
+                }
+
                 scope.insert(name.to_string(), self.uuid.clone());
                 for statement in body {
                     self.handle_stmt_node(&statement, scope);
@@ -200,15 +214,9 @@ impl Cell {
                 }
             }
 
-            StmtKind::For {
-                target,
-                iter,
-                body,
-                orelse,
-                ..
-            } => {
-                self.handle_expr_node(&target.node, scope);
-                self.handle_expr_node(&iter.node, scope);
+            StmtKind::For { body, orelse, .. } => {
+                // self.handle_expr_node(&target.node, scope);
+                // self.handle_expr_node(&iter.node, scope);
                 for statement in body {
                     self.handle_stmt_node(&statement, scope);
                 }
@@ -387,6 +395,10 @@ impl Cell {
     }
 
     fn handle_name_dep(&mut self, id: &str, ctx: &ExprContext, scope: &mut Scope) {
+        if self.ignore_bindings.contains(id) {
+            return;
+        }
+
         match ctx {
             ExprContext::Load => {
                 if let Some(dep) = scope.get(id) {

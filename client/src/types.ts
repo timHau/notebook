@@ -7,6 +7,7 @@ export type CellT = {
     content: string;
     pos: number;
     dependencies: [string];
+    isSynced?: boolean;
 };
 
 export type BindingT = {
