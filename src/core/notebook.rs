@@ -40,7 +40,7 @@ pub struct Notebook {
     #[serde(skip)]
     kernel: Kernel,
     #[serde(skip)]
-    scope: Scope,
+    pub scope: Scope,
 }
 
 impl Notebook {

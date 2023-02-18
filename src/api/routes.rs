@@ -30,6 +30,8 @@ struct EvalRequest {
 
     #[serde(rename = "cellUuid")]
     cell_uuid: String,
+
+    content: String,
 }
 
 #[derive(Serialize)]
@@ -43,6 +45,7 @@ pub type EvalResult = HashMap<String, HashMap<String, String>>; // cell_uuid -> 
 async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Responder {
     let notebook_uuid = req.notebook_uuid.clone();
     let cell_uuid = req.cell_uuid.clone();
+    let content = req.content.clone();
 
     let mut notebooks = state.open_notebooks.lock().unwrap();
     let notebook = match notebooks.get_mut(&notebook_uuid) {
@@ -50,11 +53,21 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "Notebook not found" })),
     };
 
-    let nb = notebook.clone();
+    let mut nb = notebook.clone();
     let cell = match notebook.get_cell_mut(&cell_uuid) {
         Some(cell) => cell,
         None => return HttpResponse::NotFound().json(json!({ "status": "Cell not found" })),
     };
+
+    match cell.update_content(content, &mut nb) {
+        Ok(_) => (),
+        Err(err) => {
+            return HttpResponse::InternalServerError()
+                .json(json!({ "status": "error", "message": err.to_string() }))
+        }
+    }
+
+    info!("Evaluating cell: {:#?}", cell);
 
     match nb.eval_cell(cell) {
         Ok(result) => HttpResponse::Ok().json(EvalResponse { result }),

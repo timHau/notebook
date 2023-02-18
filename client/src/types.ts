@@ -43,6 +43,11 @@ export type CellProps = {
     notebookUuid: string;
 }
 
+export type CellEditorProps = {
+    cell: CellT;
+    handleEval: (content: string) => void;
+}
+
 export type CellBindingProps = {
     cellUuid: string;
 }

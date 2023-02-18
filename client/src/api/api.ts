@@ -6,13 +6,13 @@ export default class Api {
         return await response.json();
     }
 
-    static async evalCell(notebookUuid: string, cellUuid: string) {
+    static async evalCell(notebookUuid: string, cellUuid: string, content: string) {
         const response = await fetch(`${this.#apiUrl}/eval`, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ notebookUuid, cellUuid })
+            body: JSON.stringify({ notebookUuid, cellUuid, content })
         });
         return await response.json();
     }

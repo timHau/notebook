@@ -1,4 +1,7 @@
-use super::{notebook::Scope, statement_pos::StatementPos};
+use super::{
+    notebook::{Notebook, Scope},
+    statement_pos::StatementPos,
+};
 use nanoid::nanoid;
 use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
@@ -68,6 +71,20 @@ impl Cell {
 
     pub fn new_reactive(content: &str, scope: &mut Scope) -> Result<Self, Box<dyn Error>> {
         Self::new(CellType::ReactiveCode, String::from(content), scope)
+    }
+
+    pub fn update_content(
+        &mut self,
+        content: String,
+        notebook: &mut Notebook,
+    ) -> Result<(), ParseError> {
+        match self.cell_type {
+            CellType::ReactiveCode | CellType::NonReactiveCode => {
+                self.content = content;
+                self.build_dependencies(&mut notebook.scope)
+            }
+            CellType::Markdown => Ok(warn!("TODO check Markdown cell")),
+        }
     }
 
     pub fn build_dependents(&self, cells: &mut HashMap<String, Cell>) {
