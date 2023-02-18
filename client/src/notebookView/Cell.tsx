@@ -9,6 +9,7 @@ function Cell(props: CellProps) {
 
     async function handleEval() {
         const res = await Api.evalCell(notebookUuid, cell.uuid);
+        console.log(res);
     }
 
     return (

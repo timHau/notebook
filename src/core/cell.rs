@@ -30,10 +30,13 @@ pub struct Cell {
     pub dependents: HashSet<String>,
 
     #[serde(skip)]
-    pub statements: HashSet<StatementPos>,
+    pub statements: Vec<StatementPos>,
 
     #[serde(skip)]
     pub locals: Option<Py<PyDict>>,
+
+    #[serde(skip)]
+    pub bindings: HashSet<String>,
 }
 
 impl Cell {
@@ -50,7 +53,8 @@ impl Cell {
             locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
             dependencies: HashSet::new(),
             dependents: HashSet::new(),
-            statements: HashSet::new(),
+            statements: Vec::new(),
+            bindings: HashSet::new(),
         };
 
         cell.build_dependencies(scope)?;
@@ -81,7 +85,7 @@ impl Cell {
         let ast = parser::parse_program(&self.content, "<input>")?;
 
         for statement in ast.iter() {
-            self.handle_stmt_node(&statement.node, scope);
+            self.handle_stmt_node(&statement, scope);
         }
 
         Ok(())
@@ -101,30 +105,36 @@ impl Cell {
         }
     }
 
-    fn handle_stmt_node(&mut self, statement: &StmtKind, scope: &mut Scope) {
-        match statement {
-            StmtKind::Import { names } => self.import_dependencies(names, scope),
+    fn handle_stmt_node(&mut self, statement: &Located<StmtKind>, scope: &mut Scope) {
+        let start = statement.location;
+        let end = statement.end_location.unwrap_or(start);
+        let statement_pos = match &statement.node {
+            StmtKind::Expr { .. } => StatementPos::eval_from(&start, &end),
+            _ => StatementPos::exec_from(&start, &end),
+        };
+
+        let mut has_intersection = false;
+        for pos in self.statements.iter() {
+            if pos.intersects(&statement_pos) {
+                has_intersection = true;
+                break;
+            }
+        }
+        if !has_intersection {
+            self.statements.push(statement_pos);
+        }
+
+        match &statement.node {
+            StmtKind::Import { names } => self.import_dependencies(&names, scope),
 
             StmtKind::Assign { targets, value, .. } => {
-                for target in targets {
+                for target in targets.iter() {
                     self.handle_expr_node(&target.node, scope);
                 }
                 self.handle_expr_node(&value.node, scope);
-
-                let start = targets.first().unwrap().location;
-                let end = value.end_location.unwrap_or(start);
-                let statement_pos = StatementPos::exec_from(&start, &end);
-                self.statements.insert(statement_pos);
             }
 
-            StmtKind::Expr { value } => {
-                self.handle_expr_node(&value.node, scope);
-
-                let start = value.location;
-                let end = value.end_location.unwrap_or(start);
-                let statement_pos = StatementPos::eval_from(&start, &end);
-                self.statements.insert(statement_pos);
-            }
+            StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
 
             StmtKind::AugAssign { target, value, .. } => {
                 self.handle_expr_node(&target.node, scope);
@@ -140,10 +150,10 @@ impl Cell {
             StmtKind::If { test, body, orelse } => {
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
             }
 
@@ -153,7 +163,7 @@ impl Cell {
                     // self.handle_expr_node(&case.pattern.node, scope);
                     // self.handle_expr_node(&case.guard.node, scope);
                     for statement in &case.body {
-                        self.handle_stmt_node(&statement.node, scope);
+                        self.handle_stmt_node(&statement, scope);
                     }
                 }
             }
@@ -162,7 +172,7 @@ impl Cell {
             | StmtKind::AsyncFunctionDef { name, body, .. } => {
                 scope.insert(name.to_string(), self.uuid.clone());
                 for statement in body {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
             }
 
@@ -183,10 +193,10 @@ impl Cell {
                 println!("statement: {:#?}", statement);
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
             }
 
@@ -200,10 +210,10 @@ impl Cell {
                 self.handle_expr_node(&target.node, scope);
                 self.handle_expr_node(&iter.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
             }
 
@@ -219,7 +229,7 @@ impl Cell {
                     self.handle_expr_node(&base.node, scope);
                 }
                 for statement in body {
-                    self.handle_stmt_node(&statement.node, scope);
+                    self.handle_stmt_node(&statement, scope);
                 }
                 for decorator in decorator_list {
                     self.handle_expr_node(&decorator.node, scope);
@@ -393,6 +403,7 @@ impl Cell {
                     }
                 }
                 scope.insert(id.to_string(), self.uuid.clone());
+                self.bindings.insert(id.to_string());
             }
             ExprContext::Del => {}
         }

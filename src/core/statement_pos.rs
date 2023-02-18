@@ -1,6 +1,5 @@
 use itertools::Itertools;
 use rustpython_parser::ast::Location;
-use std::hash::{Hash, Hasher};
 
 #[derive(Debug, Clone)]
 pub enum ExecutionType {
@@ -51,27 +50,6 @@ impl StatementPos {
             .collect::<Vec<_>>();
 
         lines.iter().join("\n")
-    }
-}
-
-impl PartialEq for StatementPos {
-    fn eq(&self, other: &Self) -> bool {
-        self.intersects(other)
-            || (self.row[0] == other.row[0]
-                && self.row[1] == other.row[1]
-                && self.col[0] == other.col[0]
-                && self.col[1] == other.col[1])
-    }
-}
-
-impl Eq for StatementPos {}
-
-impl Hash for StatementPos {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.row[0].hash(state);
-        self.row[1].hash(state);
-        self.col[0].hash(state);
-        self.col[1].hash(state);
     }
 }
 

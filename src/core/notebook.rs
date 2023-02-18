@@ -1,5 +1,8 @@
 use super::{cell::CellType, kernel::Kernel};
-use crate::core::{cell::Cell, topology::Topology};
+use crate::{
+    api::routes::EvalResult,
+    core::{cell::Cell, topology::Topology},
+};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
@@ -49,11 +52,13 @@ impl Notebook {
         //     &mut scope,
         // )
         // .unwrap();
-        // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
-        // let code_cell_2 = Cell::new_reactive("1 + 2", &mut scope).unwrap();
-        let code_cell_3 = Cell::new_reactive("a = 1 + 2 \\\n + 3 ", &mut scope).unwrap();
+        let code_cell_1 = Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("1 + 2", &mut scope).unwrap();
+        // let code_cell_3 = Cell::new_reactive("a = 1 + 2 \\\n + 3 + add(1, 2)", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("add(5, 2)", &mut scope).unwrap();
 
-        let mut topology = Topology::from_vec(vec![&code_cell_3], &mut scope).unwrap();
+        let mut topology =
+            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
         topology.build(&mut scope).unwrap();
 
         let kernel = Kernel::new();
@@ -77,15 +82,15 @@ impl Notebook {
         self.topology.get_cell_mut(cell_uuid)
     }
 
-    pub fn eval_cell(&self, cell: &mut Cell) -> Result<(), Box<dyn Error>> {
+    pub fn eval_cell(&self, cell: &mut Cell) -> Result<EvalResult, Box<dyn Error>> {
         match cell.cell_type {
             CellType::NonReactiveCode => todo!(),
             CellType::ReactiveCode => self.eval_reactive_cell(cell),
-            CellType::Markdown => Ok(()),
+            CellType::Markdown => todo!(),
         }
     }
 
-    fn eval_reactive_cell(&self, cell: &mut Cell) -> Result<(), Box<dyn Error>> {
+    fn eval_reactive_cell(&self, cell: &mut Cell) -> Result<EvalResult, Box<dyn Error>> {
         let execution_seq = self.topology.execution_seq(&cell.uuid)?;
 
         let execution_seq = execution_seq
@@ -93,12 +98,14 @@ impl Notebook {
             .map(|uuid| self.topology.get_cell(uuid).unwrap())
             .collect::<Vec<_>>();
 
+        let mut result = HashMap::new();
         for cell in execution_seq {
             let dependencies = self.topology.get_dependencies(&cell.uuid);
-            self.kernel.eval(cell, &dependencies);
+            let cell_res = self.kernel.eval(cell, &dependencies)?;
+            result.insert(cell.uuid.clone(), cell_res);
         }
 
-        Ok(())
+        Ok(result)
     }
 }
 

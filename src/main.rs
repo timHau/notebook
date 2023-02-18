@@ -1,6 +1,5 @@
 mod api;
 mod core;
-mod traits;
 
 use actix_cors::Cors;
 use actix_web::{

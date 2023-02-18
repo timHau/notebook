@@ -2,8 +2,9 @@ use super::ws::Ws;
 use crate::{api::state::State, core::notebook::Notebook};
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use serde_json::json;
+use std::collections::HashMap;
 use tracing::info;
 
 #[get("/")]
@@ -31,6 +32,13 @@ struct EvalRequest {
     cell_uuid: String,
 }
 
+#[derive(Serialize)]
+pub struct EvalResponse {
+    pub result: EvalResult,
+}
+
+pub type EvalResult = HashMap<String, HashMap<String, String>>; // cell_uuid -> (var_name -> var_value)
+
 #[post("/eval")]
 async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Responder {
     let notebook_uuid = req.notebook_uuid.clone();
@@ -49,14 +57,10 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
     };
 
     match nb.eval_cell(cell) {
-        Ok(_) => (),
-        Err(e) => {
-            return HttpResponse::InternalServerError()
-                .json(json!({ "status": "error", "message": e.to_string() }))
-        }
+        Ok(result) => HttpResponse::Ok().json(EvalResponse { result }),
+        Err(err) => HttpResponse::InternalServerError()
+            .json(json!({ "status": "error", "message": err.to_string() })),
     }
-
-    HttpResponse::Ok().json(json!({ "status": "ok" }))
 }
 
 pub fn notebook_routes(cfg: &mut web::ServiceConfig) {

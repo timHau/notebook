@@ -3,7 +3,7 @@ use crate::core::statement_pos::ExecutionType;
 use super::cell::Cell;
 use itertools::Itertools;
 use pyo3::{prelude::*, types::PyDict};
-use std::error::Error;
+use std::{collections::HashMap, error::Error};
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
@@ -26,16 +26,22 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&self, cell: &Cell, dependencies: &[&Cell]) -> Result<(), Box<dyn Error>> {
-        Python::with_gil(|py| {
+    pub fn eval(
+        &self,
+        cell: &Cell,
+        dependencies: &[&Cell],
+    ) -> Result<HashMap<String, String>, Box<dyn Error>> {
+        let res = Python::with_gil(|py| -> PyResult<HashMap<String, String>> {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
 
+            // merge dependencies locals
             for dependency in dependencies.iter() {
                 let dep_locals = dependency.locals.clone().unwrap();
                 locals.update(dep_locals.as_ref(py).as_mapping()).unwrap();
             }
 
+            // sort statements by row
             let sorted_statements = cell
                 .statements
                 .iter()
@@ -46,33 +52,39 @@ impl Kernel {
                 })
                 .collect::<Vec<_>>();
 
-            info!("Sorted statements: {:#?}", sorted_statements);
+            // exec/eval each statement after the other
+            let mut res = HashMap::new();
             for statement in sorted_statements {
                 let code = statement.extract_code(&cell.content);
 
-                info!("Code: {}", code);
                 match statement.execution_type {
                     ExecutionType::Eval => {
                         match py.eval(&code, Some(self.globals.as_ref(py)), Some(locals)) {
-                            Ok(code) => {
-                                info!("Eval Code: {:#?}, locals: {:#?}", code, locals);
-                            }
-                            Err(e) => warn!("Error: {}", e),
+                            Ok(code) => res.insert("RETURN".to_string(), code.to_string()),
+                            Err(err) => return Err(err),
                         };
                     }
                     ExecutionType::Exec => {
                         match py.run(&code, Some(self.globals.as_ref(py)), Some(locals)) {
-                            Ok(code) => {
-                                info!("Exec Code: {:#?}, locals: {:#?}", code, locals);
+                            Ok(_) => {
+                                for binding in cell.bindings.iter() {
+                                    if let Some(value) = locals.get_item(binding) {
+                                        res.insert(binding.to_string(), value.to_string());
+                                    }
+                                }
                             }
-                            Err(e) => warn!("Error: {}", e),
+                            Err(err) => return Err(err),
                         };
                     }
                 }
             }
-        });
 
-        Ok(())
+            info!("Code: {}, Result: {:?}", cell.content, res);
+
+            Ok(res)
+        })?;
+
+        Ok(res)
     }
 }
 

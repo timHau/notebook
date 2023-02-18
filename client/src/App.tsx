@@ -27,7 +27,7 @@ function App() {
         console.log(error);
       }
     }
-    initWs();
+    // initWs();
   }, []);
 
   if (!notebook) {
