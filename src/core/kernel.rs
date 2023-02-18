@@ -1,5 +1,9 @@
+use crate::core::statement_pos::ExecutionType;
+
 use super::cell::Cell;
+use itertools::Itertools;
 use pyo3::{prelude::*, types::PyDict};
+use std::error::Error;
 use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
@@ -22,7 +26,7 @@ impl Kernel {
         }
     }
 
-    pub fn eval(&self, cell: &Cell, dependencies: &[&Cell]) {
+    pub fn eval(&self, cell: &Cell, dependencies: &[&Cell]) -> Result<(), Box<dyn Error>> {
         Python::with_gil(|py| {
             let locals = cell.locals.clone().unwrap();
             let locals = locals.as_ref(py);
@@ -32,13 +36,43 @@ impl Kernel {
                 locals.update(dep_locals.as_ref(py).as_mapping()).unwrap();
             }
 
-            match py.run(&cell.content, Some(self.globals.as_ref(py)), Some(locals)) {
-                Ok(_) => info!("Successcfully evaluated cell"),
-                Err(err) => warn!("Error: {}", err),
-            };
+            let sorted_statements = cell
+                .statements
+                .iter()
+                .sorted_by(|pos_1, pos_2| {
+                    let row_1 = pos_1.row;
+                    let row_2 = pos_2.row;
+                    row_1.cmp(&row_2)
+                })
+                .collect::<Vec<_>>();
 
-            info!("Locals: {:#?}", locals);
+            info!("Sorted statements: {:#?}", sorted_statements);
+            for statement in sorted_statements {
+                let code = statement.extract_code(&cell.content);
+
+                info!("Code: {}", code);
+                match statement.execution_type {
+                    ExecutionType::Eval => {
+                        match py.eval(&code, Some(self.globals.as_ref(py)), Some(locals)) {
+                            Ok(code) => {
+                                info!("Eval Code: {:#?}, locals: {:#?}", code, locals);
+                            }
+                            Err(e) => warn!("Error: {}", e),
+                        };
+                    }
+                    ExecutionType::Exec => {
+                        match py.run(&code, Some(self.globals.as_ref(py)), Some(locals)) {
+                            Ok(code) => {
+                                info!("Exec Code: {:#?}, locals: {:#?}", code, locals);
+                            }
+                            Err(e) => warn!("Error: {}", e),
+                        };
+                    }
+                }
+            }
         });
+
+        Ok(())
     }
 }
 

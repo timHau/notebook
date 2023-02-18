@@ -1,4 +1,4 @@
-use super::notebook::Scope;
+use super::{notebook::Scope, statement_pos::StatementPos};
 use nanoid::nanoid;
 use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
@@ -13,7 +13,12 @@ use std::{
 };
 use tracing::{info, log::warn};
 
-pub type Dependencies = HashSet<String>;
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub enum CellType {
+    NonReactiveCode,
+    ReactiveCode,
+    Markdown,
+}
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Cell {
@@ -21,8 +26,11 @@ pub struct Cell {
     pub uuid: String,
     pub cell_type: CellType,
     pub content: String,
-    pub dependencies: Dependencies,
-    pub dependents: Dependencies,
+    pub dependencies: HashSet<String>,
+    pub dependents: HashSet<String>,
+
+    #[serde(skip)]
+    pub statements: HashSet<StatementPos>,
 
     #[serde(skip)]
     pub locals: Option<Py<PyDict>>,
@@ -40,8 +48,9 @@ impl Cell {
             cell_type,
             content,
             locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
-            dependencies: Dependencies::new(),
-            dependents: Dependencies::new(),
+            dependencies: HashSet::new(),
+            dependents: HashSet::new(),
+            statements: HashSet::new(),
         };
 
         cell.build_dependencies(scope)?;
@@ -101,9 +110,21 @@ impl Cell {
                     self.handle_expr_node(&target.node, scope);
                 }
                 self.handle_expr_node(&value.node, scope);
+
+                let start = targets.first().unwrap().location;
+                let end = value.end_location.unwrap_or(start);
+                let statement_pos = StatementPos::exec_from(&start, &end);
+                self.statements.insert(statement_pos);
             }
 
-            StmtKind::Expr { value } => self.handle_expr_node(&value.node, scope),
+            StmtKind::Expr { value } => {
+                self.handle_expr_node(&value.node, scope);
+
+                let start = value.location;
+                let end = value.end_location.unwrap_or(start);
+                let statement_pos = StatementPos::eval_from(&start, &end);
+                self.statements.insert(statement_pos);
+            }
 
             StmtKind::AugAssign { target, value, .. } => {
                 self.handle_expr_node(&target.node, scope);
@@ -383,13 +404,6 @@ pub struct CellMetadata {
     pub collapsed: bool,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone)]
-pub enum CellType {
-    NonReactiveCode,
-    ReactiveCode,
-    Markdown,
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -403,7 +417,7 @@ mod tests {
         let mut cell = Cell::new_reactive("a = 1", &mut scope)?;
         cell.build_dependencies(&mut scope)?;
 
-        let expect: Dependencies = HashSet::new();
+        let expect = HashSet::new();
 
         assert_eq!(scope.get("a"), Some(&cell.uuid));
         Ok(assert_eq!(cell.dependencies, expect))

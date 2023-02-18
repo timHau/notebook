@@ -3,7 +3,6 @@ use crate::core::{cell::Cell, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error};
-use tracing::{info, warn};
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
 struct LanguageInfo {
@@ -44,18 +43,17 @@ pub struct Notebook {
 impl Notebook {
     pub fn new() -> Self {
         let mut scope = Scope::default();
-        let code_cell_1 = Cell::new(
-            CellType::ReactiveCode,
-            String::from("def add(a, b):\n  return a + b"),
-            &mut scope,
-        )
-        .unwrap();
+        // let code_cell_1 = Cell::new(
+        //     CellType::ReactiveCode,
+        //     String::from("def add(a, b): return a + b"),
+        //     &mut scope,
+        // )
+        // .unwrap();
         // let code_cell_1 = Cell::new_reactive("a = b + 1", &mut scope).unwrap();
-        let code_cell_2 = Cell::new_reactive("add(1, 2)", &mut scope).unwrap();
-        let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
+        // let code_cell_2 = Cell::new_reactive("1 + 2", &mut scope).unwrap();
+        let code_cell_3 = Cell::new_reactive("a = 1 + 2 \\\n + 3 ", &mut scope).unwrap();
 
-        let mut topology =
-            Topology::from_vec(vec![&code_cell_1, &code_cell_2, &code_cell_3], &mut scope).unwrap();
+        let mut topology = Topology::from_vec(vec![&code_cell_3], &mut scope).unwrap();
         topology.build(&mut scope).unwrap();
 
         let kernel = Kernel::new();

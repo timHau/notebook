@@ -1,4 +1,4 @@
-use crate::core::{kernel::Kernel, notebook::Notebook};
+use crate::core::notebook::Notebook;
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},

@@ -941,6 +941,7 @@ dependencies = [
  "actix-web",
  "actix-web-actors",
  "dotenv",
+ "itertools",
  "nanoid",
  "pyo3",
  "rustpython-parser",

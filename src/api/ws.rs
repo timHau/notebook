@@ -8,7 +8,7 @@ impl Actor for Ws {
 }
 
 impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Ws {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
+    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, _ctx: &mut Self::Context) {
         println!("WEBSOCKET MESSAGE: {:?}", msg);
     }
 }
