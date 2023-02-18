@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
-import Api from './utils/api'
+import Api from './api/api'
 import Notebook from './notebookView/Notebook';
-import { WsClient, WsClientT } from './utils/ws';
-import { NotebookT } from './notebookView/types';
+import { WsClient, WsClientT } from './api/ws';
+import { NotebookT } from './types';
 
 function App() {
   const [notebook, setNotebook] = useState<NotebookT>();

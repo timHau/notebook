@@ -9,6 +9,10 @@ export type CellT = {
     dependencies: [string];
 };
 
+export type BindingT = {
+    [key: string]: string;
+};
+
 export type NotebookT = {
     uuid: string;
     language_info?: {
@@ -34,6 +38,10 @@ export type NotebookProps = {
 }
 
 export type CellProps = {
-    cell: CellT;
+    cellUuid: string;
     notebookUuid: string;
+}
+
+export type CellBindingProps = {
+    cellUuid: string;
 }

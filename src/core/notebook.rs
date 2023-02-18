@@ -53,7 +53,7 @@ impl Notebook {
         // )
         // .unwrap();
         let code_cell_1 = Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap();
-        let code_cell_2 = Cell::new_reactive("1 + 2", &mut scope).unwrap();
+        let code_cell_2 = Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap();
         // let code_cell_3 = Cell::new_reactive("a = 1 + 2 \\\n + 3 + add(1, 2)", &mut scope).unwrap();
         let code_cell_3 = Cell::new_reactive("add(5, 2)", &mut scope).unwrap();
 

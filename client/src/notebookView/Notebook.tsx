@@ -1,10 +1,19 @@
 import Cell from "./Cell";
-import { CellT as CellT, NotebookProps } from "./types"
+import { init } from "../store/cellSlice";
+import { CellT, NotebookProps } from "../types"
+import { useAppDispatch } from "../store/hooks";
+import { useEffect } from "react";
 
 function Notebook(props: NotebookProps) {
     const { notebook } = props;
-    let cells: CellT[] = notebook.topology.display_order.map((uuid: string) => notebook.topology.cells[uuid]);
+    const dispatch = useAppDispatch()
 
+    useEffect(() => {
+        let cells: CellT[] = notebook.topology.display_order.map((uuid: string) => notebook.topology.cells[uuid]);
+        dispatch(init(cells));
+    }, [notebook.topology.display_order]);
+
+    const order = notebook.topology.display_order;
     return (
         <div className="min-w-3/4 pt-5">
             <div className="flex justify-between mb-5">
@@ -15,7 +24,7 @@ function Notebook(props: NotebookProps) {
                 </div>
             </div>
             <div>
-                {cells.map((cell: CellT, i) => <Cell key={i} cell={cell} notebookUuid={notebook.uuid} />)}
+                {order.map((cellUuid: string) => <Cell key={cellUuid} cellUuid={cellUuid} notebookUuid={notebook.uuid} />)}
             </div>
         </div>
     )
