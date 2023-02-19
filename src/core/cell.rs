@@ -10,10 +10,7 @@ use rustpython_parser::{
     parser,
 };
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::{HashMap, HashSet},
-    error::Error,
-};
+use std::collections::HashSet;
 use tracing::{info, log::warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -73,19 +70,30 @@ impl Cell {
         Self::new(CellType::ReactiveCode, String::from(content), scope)
     }
 
-    // pub fn update_content(
-    //     &mut self,
-    //     content: String,
-    //     notebook: &mut Notebook,
-    // ) -> Result<(), ParseError> {
-    //     match self.cell_type {
-    //         CellType::ReactiveCode | CellType::NonReactiveCode => {
-    //             self.content = content;
-    //             self.build_dependencies(&mut notebook.scope)
-    //         }
-    //         CellType::Markdown => Ok(warn!("TODO check Markdown cell")),
-    //     }
-    // }
+    fn unbind_all(&mut self) {
+        self.bindings.clear();
+        self.ignore_bindings.clear();
+        self.required.clear();
+    }
+
+    pub fn update_content(&mut self, content: &str, scope: &mut Scope) -> Result<(), ParseError> {
+        // remove old bindings from global scope
+        for binding in self.bindings.iter() {
+            scope.remove(binding);
+        }
+
+        match self.cell_type {
+            CellType::ReactiveCode | CellType::NonReactiveCode => {
+                // remove all local bindings
+                self.unbind_all();
+                // update content
+                self.content = content.to_string();
+                // rebind all new local bindings
+                self.setup_local_vars(scope)
+            }
+            CellType::Markdown => Ok(warn!("TODO check Markdown cell")),
+        }
+    }
 
     pub fn setup_local_vars(&mut self, scope: &mut Scope) -> Result<(), ParseError> {
         match self.cell_type {
@@ -408,11 +416,6 @@ impl Cell {
 
         match ctx {
             ExprContext::Load => {
-                // if let Some(dep) = scope.get(id) {
-                //     if dep != &self.uuid {
-                //         self.dependencies.insert(dep.to_string());
-                //     }
-                // }
                 self.required.insert(id.to_string());
             }
             ExprContext::Store => {
@@ -420,7 +423,6 @@ impl Cell {
                 // Given cell 1) a = 1 and cell 2) while True:\n  a += 1,
                 if let Some(dep) = scope.get(id) {
                     if dep != &self.uuid {
-                        // self.dependencies.insert(dep.to_string());
                         self.required.insert(id.to_string());
                     }
                 } else {
@@ -441,8 +443,6 @@ pub struct CellMetadata {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::topology::Topology;
-    use std::error::Error;
 
     #[test]
     fn setup_local_vars() {

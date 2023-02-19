@@ -45,6 +45,24 @@ impl Topology {
         self.cells.get(uuid)
     }
 
+    pub fn update_cell(
+        &mut self,
+        cell_uuid: &str,
+        next_content: &str,
+        scope: &mut Scope,
+    ) -> Result<(), Box<dyn Error>> {
+        if let Some(cell) = self.get_cell_mut(cell_uuid) {
+            if next_content == cell.content {
+                return Ok(());
+            }
+
+            cell.update_content(next_content, scope)?;
+            self.build(scope)?;
+        }
+
+        Ok(())
+    }
+
     pub fn get_dependencies(&self, uuid: &str) -> Vec<&Cell> {
         self.dependencies
             .get(uuid)
@@ -64,6 +82,9 @@ impl Topology {
     }
 
     pub fn build(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
+        self.dependencies.clear();
+        self.dependents.clear();
+
         for cell in self.cells.values() {
             for required_var in cell.required.iter() {
                 if let Some(other_uuid) = scope.get(required_var) {

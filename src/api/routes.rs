@@ -53,23 +53,7 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "Notebook not found" })),
     };
 
-    let mut nb = notebook.clone();
-    let cell = match notebook.get_cell_mut(&cell_uuid) {
-        Some(cell) => cell,
-        None => return HttpResponse::NotFound().json(json!({ "status": "Cell not found" })),
-    };
-
-    // match cell.update_content(content, &mut nb) {
-    //     Ok(_) => (),
-    //     Err(err) => {
-    //         return HttpResponse::InternalServerError()
-    //             .json(json!({ "status": "error", "message": err.to_string() }))
-    //     }
-    // }
-
-    info!("Evaluating cell: {:#?}", cell);
-
-    match nb.eval_cell(cell) {
+    match notebook.eval_cell(&cell_uuid, &content) {
         Ok(result) => HttpResponse::Ok().json(EvalResponse { result }),
         Err(err) => HttpResponse::InternalServerError()
             .json(json!({ "status": "error", "message": err.to_string() })),

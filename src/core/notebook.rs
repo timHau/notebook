@@ -1,4 +1,4 @@
-use super::{cell::CellType, kernel::Kernel};
+use super::{cell::CellType, errors::NotebookErrors, kernel::Kernel};
 use crate::{
     api::routes::EvalResult,
     core::{cell::Cell, topology::Topology},
@@ -39,6 +39,7 @@ pub struct Notebook {
 
     #[serde(skip)]
     kernel: Kernel,
+
     #[serde(skip)]
     pub scope: Scope,
 }
@@ -46,20 +47,14 @@ pub struct Notebook {
 impl Notebook {
     pub fn new() -> Self {
         let mut scope = Scope::default();
-        // let code_cell_1 = Cell::new(
-        //     CellType::ReactiveCode,
-        //     String::from("def add(a, b): return a + b"),
-        //     &mut scope,
-        // )
-        // .unwrap();
-        let code_cell_1 = Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap();
-        let code_cell_2 = Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap();
-        let code_cell_3 = Cell::new_reactive("add(5, 2)", &mut scope).unwrap();
-        let code_cell_4 =
-            Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap();
-
         let mut topology = Topology::from_vec(
-            vec![code_cell_1, code_cell_2, code_cell_3, code_cell_4],
+            vec![
+                Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap(),
+                Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
+                Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
+                Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap(),
+                Cell::new_reactive("add(10, 20)", &mut scope).unwrap(),
+            ],
             &mut scope,
         )
         .unwrap();
@@ -86,27 +81,30 @@ impl Notebook {
         self.topology.get_cell_mut(cell_uuid)
     }
 
-    pub fn eval_cell(&self, cell: &mut Cell) -> Result<EvalResult, Box<dyn Error>> {
-        match cell.cell_type {
-            CellType::NonReactiveCode => todo!(),
-            CellType::ReactiveCode => self.eval_reactive_cell(cell),
-            CellType::Markdown => todo!(),
-        }
-    }
-
-    fn eval_reactive_cell(&self, cell: &mut Cell) -> Result<EvalResult, Box<dyn Error>> {
-        let execution_seq = self.topology.execution_seq(&cell.uuid)?;
+    pub fn eval_cell(
+        &mut self,
+        cell_uuid: &str,
+        next_content: &str,
+    ) -> Result<EvalResult, Box<dyn Error>> {
+        // update cell content if it has changed
+        self.topology
+            .update_cell(cell_uuid, next_content, &mut self.scope)?;
 
         let mut result = HashMap::new();
+
+        // get an topological order of the cell uuids and execute them in order
+        let execution_seq = self.topology.execution_seq(cell_uuid)?;
         for uuid in execution_seq {
-            if let Some(next_cell) = self.topology.get_cell(&uuid) {
-                let dependencies = self.topology.get_dependencies(&next_cell.uuid);
-                println!(
-                    "next_cell: {:#?}, dependencies: {:#?}",
-                    next_cell, dependencies
-                );
-                let cell_res = self.kernel.eval(next_cell, &dependencies)?;
-                result.insert(next_cell.uuid.clone(), cell_res);
+            let topology = self.topology.clone();
+            if let Some(next_cell) = self.topology.get_cell_mut(&uuid) {
+                match next_cell.cell_type {
+                    CellType::ReactiveCode => {
+                        let dependencies = topology.get_dependencies(&next_cell.uuid);
+                        let cell_res = self.kernel.eval(next_cell, &dependencies)?;
+                        result.insert(next_cell.uuid.clone(), cell_res);
+                    }
+                    _ => return Err(Box::new(NotebookErrors::NotYetImplemented)),
+                }
             }
         }
 

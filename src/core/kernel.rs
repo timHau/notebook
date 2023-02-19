@@ -4,7 +4,6 @@ use super::cell::Cell;
 use itertools::Itertools;
 use pyo3::{prelude::*, types::PyDict};
 use std::{collections::HashMap, error::Error};
-use tracing::{info, warn};
 
 #[derive(Debug, Clone)]
 pub struct Kernel {
