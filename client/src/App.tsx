@@ -38,7 +38,7 @@ function App() {
   console.log(ws);
 
   return (
-    <div className="h-screen dark:bg-zinc-900 dark:text-stone-200 flex justify-center">
+    <div className="h-screen dark:bg-zinc-900 dark:text-gray-300 flex justify-center">
       <Notebook notebook={notebook} />
     </div>
   )

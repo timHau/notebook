@@ -1,12 +1,13 @@
-// @ts-ignore-next-line
-import { highlight, languages } from "prismjs/components/prism-core";
 import { CellBindingProps, CellEditorProps, CellProps } from "../types";
-import { RxPlay, RxMagicWand, RxLinkBreak1, RxPencil1 } from "react-icons/rx";
+import { RxTriangleRight, RxMagicWand, RxLinkBreak1, RxPencil1 } from "react-icons/rx";
 import Api from "../api/api";
 import { updateBinding } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import Editor from "react-simple-code-editor";
 import { KeyboardEvent, useState } from "react";
+import CodeMirror from "@uiw/react-codemirror";
+import { python } from "@codemirror/lang-python";
+import { atomone } from "@uiw/codemirror-themes-all";
+import "./Cell.css"
 
 function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
@@ -50,47 +51,47 @@ function CellEditor(props: CellEditorProps) {
         <div className="flex flex-col hover:cursor-pointer"
             onMouseOver={() => setShowCellToolbar(true)}
             onMouseOut={() => setShowCellToolbar(false)}>
-            <div className="flex items-end my-2 relative">
-                {showCellToolbar &&
-                    <div className="absolute right-0 top-0 z-10">
-                        <RxPlay
-                            className={"mr-1 w-8 h-8 hover:cursor-pointer" + (cell.isSynced ? " text-green-500" : " text-red-600")}
-                            onClick={() => props.handleEval(localCode)} />
-                    </div>
-                }
+            <div className="flex items-end my-1.5 relative">
+                <div className="absolute right-0 top-0 z-10">
+                    <RxTriangleRight
+                        className={"mr-1 w-6 h-6 hover:cursor-pointer" + (cell.isSynced ? " text-green-500" : " text-gray-600")}
+                        onClick={() => props.handleEval(localCode)} />
+                </div>
 
                 <div className="w-full">
-                    <Editor
+                    <CodeMirror
                         value={localCode}
-                        onValueChange={(code) => setLocalCode(code)}
+                        onChange={(code) => setLocalCode(code)}
                         onKeyDown={handleKeyDown}
-                        highlight={(code) => highlight(code, languages.python, 'python')}
-                        padding={10}
+                        theme={atomone}
+                        extensions={[python()]}
                         style={{
-                            fontFamily: '"Fira code", "Fira Mono", monospace',
-                            fontSize: 12,
-                            backgroundColor: "#27272a",
-                            color: "#d4d4d4",
-                            borderRadius: "0.375rem",
+                            fontSize: "0.8rem",
+                            borderRadius: "0.25rem",
+                        }}
+                        basicSetup={{
+                            lineNumbers: false,
+                            highlightActiveLine: false,
+                            highlightActiveLineGutter: false,
                         }}
                     />
                 </div>
             </div>
-            {showCellToolbar &&
-                <div className="flex text-xs justify-center">
-                    <div className="flex mr-2">
-                        <RxMagicWand className="text-slate-100 mr-1 w-4 h-4 hover:bg-slate-700 hover:cursor-pointer" />
-                        <span>Reactive code</span>
+            {/* {showCellToolbar &&
+                <div className="flex text-xs justify-center mb-1">
+                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
+                        <RxMagicWand className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
+                        <span className="ml-0.5 mr-1">reactive code</span>
                     </div>
-                    <div className="flex mr-2">
-                        <RxLinkBreak1 className="text-slate-100 mr-1 w-4 h-4 hover:bg-slate-700 hover:cursor-pointer" />
-                        <span>Non-reactive code</span>
+                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
+                        <RxLinkBreak1 className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
+                        <span className="ml-0.5 mr-1">non-reactive code</span>
                     </div>
-                    <div className="flex">
-                        <RxPencil1 className="text-slate-100 mr-1 w-4 h-4 hover:bg-slate-700 hover:cursor-pointer" />
-                        <span>Markdown</span>
+                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
+                        <RxPencil1 className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
+                        <span>markdown</span>
                     </div>
-                </div>}
+                </div>} */}
         </div>
     )
 }
@@ -98,14 +99,14 @@ function CellEditor(props: CellEditorProps) {
 function CellBindings(props: CellBindingProps) {
     const bindings = useAppSelector((state) => state.cells.bindings);
     const binding = bindings[props.cellUuid];
-    if (!binding) {
+    if (!binding || Object.keys(binding).length === 0) {
         return <span className="hidden"></span>
     }
 
     return (
-        <div className="flex">
+        <div className="flex  px-3 py-1 mb-2.5 rounded-md">
             {Object.keys(binding).map((key: string) => (
-                <div key={key} className="mr-2">
+                <div key={key} className="">
                     <span className="text-xs text-slate-100 pr-1">{key === "RETURN" ? "" : key}</span>
                     <span className="text-xs text-slate-100">{binding[key as any]}</span>
                 </div>

@@ -41,10 +41,6 @@ impl Topology {
         self.cells.get_mut(uuid)
     }
 
-    pub fn get_cell(&self, uuid: &str) -> Option<&Cell> {
-        self.cells.get(uuid)
-    }
-
     pub fn update_cell(
         &mut self,
         cell_uuid: &str,

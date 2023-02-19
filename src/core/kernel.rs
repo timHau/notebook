@@ -56,6 +56,7 @@ impl Kernel {
             for statement in sorted_statements {
                 let code = statement.extract_code(&cell.content);
 
+                println!("code: {}, statement: {:?}", code, statement);
                 match statement.execution_type {
                     ExecutionType::Eval => {
                         match py.eval(&code, Some(self.globals.as_ref(py)), Some(locals)) {

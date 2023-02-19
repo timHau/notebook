@@ -74,6 +74,7 @@ impl Cell {
         self.bindings.clear();
         self.ignore_bindings.clear();
         self.required.clear();
+        self.statements.clear();
     }
 
     pub fn update_content(&mut self, content: &str, scope: &mut Scope) -> Result<(), ParseError> {
