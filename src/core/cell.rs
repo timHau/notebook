@@ -111,14 +111,13 @@ impl Cell {
     }
 
     fn import_dependencies(&mut self, names: &[Located<AliasData>], scope: &mut Scope) {
-        info!("Import statement: {:#?}", names);
         for name in names {
             if let Some(alias) = &name.node.asname {
-                info!("alias: {:#?}", alias);
                 scope.insert(alias.to_string(), self.uuid.clone());
+                self.bindings.insert(alias.to_string());
             } else {
                 let import_name = name.node.name.to_string();
-                info!("name: {:#?}", import_name);
+                self.bindings.insert(import_name.clone());
                 scope.insert(import_name, self.uuid.clone());
             }
         }
