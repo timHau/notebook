@@ -97,16 +97,17 @@ impl Notebook {
     fn eval_reactive_cell(&self, cell: &mut Cell) -> Result<EvalResult, Box<dyn Error>> {
         let execution_seq = self.topology.execution_seq(&cell.uuid)?;
 
-        let execution_seq = execution_seq
-            .iter()
-            .map(|uuid| self.topology.get_cell(uuid).unwrap())
-            .collect::<Vec<_>>();
-
         let mut result = HashMap::new();
-        for cell in execution_seq {
-            let dependencies = self.topology.get_dependencies(&cell.uuid);
-            let cell_res = self.kernel.eval(cell, &dependencies)?;
-            result.insert(cell.uuid.clone(), cell_res);
+        for uuid in execution_seq {
+            if let Some(next_cell) = self.topology.get_cell(&uuid) {
+                let dependencies = self.topology.get_dependencies(&next_cell.uuid);
+                println!(
+                    "next_cell: {:#?}, dependencies: {:#?}",
+                    next_cell, dependencies
+                );
+                let cell_res = self.kernel.eval(next_cell, &dependencies)?;
+                result.insert(next_cell.uuid.clone(), cell_res);
+            }
         }
 
         Ok(result)

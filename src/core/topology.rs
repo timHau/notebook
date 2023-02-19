@@ -37,30 +37,6 @@ impl Topology {
         Ok(topology)
     }
 
-    fn add_cell_without_building(&mut self, cell: &Cell) {
-        self.cells.insert(cell.uuid.clone(), cell.clone());
-        self.display_order.push(cell.uuid.clone());
-    }
-
-    pub fn build(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
-        for cell in self.cells.values() {
-            for required_var in cell.required.iter() {
-                if let Some(other_uuid) = scope.get(required_var) {
-                    self.dependents
-                        .entry(other_uuid.clone())
-                        .or_insert_with(HashSet::new)
-                        .insert(cell.uuid.clone());
-
-                    self.dependencies
-                        .entry(cell.uuid.clone())
-                        .or_insert_with(HashSet::new)
-                        .insert(other_uuid.clone());
-                }
-            }
-        }
-        Ok(())
-    }
-
     pub fn get_cell_mut(&mut self, uuid: &str) -> Option<&mut Cell> {
         self.cells.get_mut(uuid)
     }
@@ -87,6 +63,25 @@ impl Topology {
             .collect()
     }
 
+    pub fn build(&mut self, scope: &mut Scope) -> Result<(), Box<dyn Error>> {
+        for cell in self.cells.values() {
+            for required_var in cell.required.iter() {
+                if let Some(other_uuid) = scope.get(required_var) {
+                    self.dependents
+                        .entry(other_uuid.clone())
+                        .or_insert_with(HashSet::new)
+                        .insert(cell.uuid.clone());
+
+                    self.dependencies
+                        .entry(cell.uuid.clone())
+                        .or_insert_with(HashSet::new)
+                        .insert(other_uuid.clone());
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub fn execution_seq(&self, cell_uuid: &str) -> Result<Vec<String>, Box<dyn Error>> {
         let cell = match self.cells.get(cell_uuid) {
             Some(cell) => cell,
@@ -102,8 +97,13 @@ impl Topology {
         nodes.append(&mut dependents);
 
         let mut update_topology = Self::new();
+        update_topology.dependencies = self.dependencies.clone();
+        update_topology.dependents = self.dependents.clone();
         for node in nodes {
-            update_topology.add_cell_without_building(node);
+            update_topology
+                .cells
+                .insert(node.uuid.clone(), node.clone());
+            update_topology.display_order.push(node.uuid.clone());
         }
 
         let sorted = update_topology.topological_sort()?;
@@ -392,7 +392,7 @@ mod tests {
         let code_cell_3 = Cell::new_reactive("c = 1", &mut scope).unwrap();
 
         let target_uuid = code_cell_2.uuid.clone();
-        let expected_seq = vec![code_cell_2.uuid.clone(), code_cell_1.uuid.clone()];
+        let expected_seq = vec![target_uuid.clone(), code_cell_1.uuid.clone()];
 
         let topology =
             Topology::from_vec(vec![code_cell_1, code_cell_2, code_cell_3], &mut scope).unwrap();
@@ -408,32 +408,34 @@ mod tests {
 
         let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
         let cell_2 = Cell::new_reactive("b = a", &mut scope)?;
-
-        let uuid_1 = cell_1.uuid.clone();
-        let uuid_2 = cell_2.uuid.clone();
+        let cell_1_uuid = cell_1.uuid.clone();
+        let cell_2_uuid = cell_2.uuid.clone();
 
         let topology = Topology::from_vec(vec![cell_1, cell_2], &mut scope)?;
 
-        let expected_dependencies = vec![uuid_1.clone()];
-        let dependencies = topology.get_dependencies(&uuid_2);
+        let expected_dependencies = vec![cell_1_uuid.clone()];
+        let dependencies = topology.get_dependencies(&cell_2_uuid);
         Ok(assert_eq!(dependencies[0].uuid, expected_dependencies[0]))
     }
 
-    // #[test]
-    // fn test_assign_add_code_dependencies() -> Result<(), Box<dyn Error>> {
-    //     let mut scope = Scope::new();
+    #[test]
+    fn test_assign_add_code_dependencies() -> Result<(), Box<dyn Error>> {
+        let mut scope = Scope::new();
 
-    //     let cell_1 = Cell::new_reactive("a = 1");
-    //     let mut cell_2 = Cell::new_reactive("b = a + 1");
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope)?;
+        let cell_2 = Cell::new_reactive("b = a + 1", &mut scope)?;
+        let cell_1_uuid = cell_1.uuid.clone();
+        let cell_2_uuid = cell_2.uuid.clone();
 
-    //     cell_2.build_dependencies(&mut scope)?;
+        let topology = Topology::from_vec(vec![cell_1, cell_2], &mut scope)?;
 
-    //     let expect = HashSet::from([cell_1.uuid.to_string()]);
+        assert_eq!(scope.get("a").unwrap(), &cell_1_uuid);
+        assert_eq!(scope.get("b").unwrap(), &cell_2_uuid);
 
-    //     assert_eq!(scope.get("a"), Some(&cell_1.uuid));
-    //     assert_eq!(scope.get("b"), Some(&cell_2.uuid));
-    //     Ok(assert_eq!(cell_2.dependencies, expect))
-    // }
+        let expected_dependencies = vec![cell_1_uuid.clone()];
+        let dependencies = topology.get_dependencies(&cell_2_uuid);
+        Ok(assert_eq!(dependencies[0].uuid, expected_dependencies[0]))
+    }
 
     // #[test]
     // fn test_assign_add_two_code_dependencies() -> Result<(), Box<dyn Error>> {
@@ -992,19 +994,37 @@ mod tests {
     //     Ok(assert_eq!(cell_2.dependencies, expect))
     // }
 
-    // #[test]
-    // fn test_fndef_dependencies() -> Result<(), Box<dyn Error>> {
-    //     let mut scope = Scope::new();
+    #[test]
+    fn test_funndef_dependencies() {
+        let mut scope = Scope::new();
 
-    //     let cell_1 = Cell::new_reactive("a = 1");
-    //     let mut cell_2 = Cell::new_reactive("def b(c, d): return a");
+        let cell_1 = Cell::new_reactive("a = 1", &mut scope).unwrap();
+        let cell_2 = Cell::new_reactive("def b(c, d): return a", &mut scope).unwrap();
+        let cell_1_uuid = cell_1.uuid.to_string();
+        let cell_2_uuid = cell_2.uuid.to_string();
 
-    //     cell_2.build_dependencies(&mut scope)?;
+        let topology = Topology::from_vec(vec![cell_1, cell_2], &mut scope).unwrap();
 
-    //     let expect = HashSet::from([cell_1.uuid.to_string()]);
+        let expected_dependencies = vec![cell_1_uuid.clone()];
+        let dependencies = topology.get_dependencies(&cell_2_uuid);
+        assert_eq!(dependencies[0].uuid, expected_dependencies[0]);
+    }
 
-    //     Ok(assert_eq!(cell_2.dependencies, expect))
-    // }
+    #[test]
+    fn test_funndef_2_dependencies() {
+        let mut scope = Scope::new();
+
+        let cell_1 = Cell::new_reactive("add(1,2)", &mut scope).unwrap();
+        let cell_2 = Cell::new_reactive("def add(a, b): return a + b", &mut scope).unwrap();
+        let cell_1_uuid = cell_1.uuid.to_string();
+        let cell_2_uuid = cell_2.uuid.to_string();
+
+        let topology = Topology::from_vec(vec![cell_1, cell_2], &mut scope).unwrap();
+
+        let expected_dependents = vec![cell_1_uuid.clone()];
+        let dependencies = topology.get_dependents(&cell_2_uuid);
+        assert_eq!(dependencies[0].uuid, expected_dependents[0]);
+    }
 
     // #[test]
     // fn test_asyncfndef_dependencies() -> Result<(), Box<dyn Error>> {
