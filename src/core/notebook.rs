@@ -59,7 +59,7 @@ impl Notebook {
             Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap();
 
         let mut topology = Topology::from_vec(
-            vec![&code_cell_1, &code_cell_2, &code_cell_3, &code_cell_4],
+            vec![code_cell_1, code_cell_2, code_cell_3, code_cell_4],
             &mut scope,
         )
         .unwrap();

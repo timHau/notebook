@@ -59,13 +59,13 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "Cell not found" })),
     };
 
-    match cell.update_content(content, &mut nb) {
-        Ok(_) => (),
-        Err(err) => {
-            return HttpResponse::InternalServerError()
-                .json(json!({ "status": "error", "message": err.to_string() }))
-        }
-    }
+    // match cell.update_content(content, &mut nb) {
+    //     Ok(_) => (),
+    //     Err(err) => {
+    //         return HttpResponse::InternalServerError()
+    //             .json(json!({ "status": "error", "message": err.to_string() }))
+    //     }
+    // }
 
     info!("Evaluating cell: {:#?}", cell);
 
