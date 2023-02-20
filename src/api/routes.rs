@@ -9,7 +9,13 @@ use tracing::info;
 
 #[get("/")]
 pub async fn index(state: web::Data<State>) -> impl Responder {
-    let mut open_notebooks = state.open_notebooks.lock().unwrap();
+    let open_notebooks = state.open_notebooks.lock();
+    if open_notebooks.is_err() {
+        return HttpResponse::InternalServerError()
+            .json(json!({ "status": "error", "message": "Could not lock notebooks" }));
+    }
+
+    let mut open_notebooks = open_notebooks.unwrap();
     if !open_notebooks.is_empty() {
         let notebook = open_notebooks
             .get(&open_notebooks.keys().next().unwrap().clone())
@@ -47,7 +53,13 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
     let cell_uuid = req.cell_uuid.clone();
     let content = req.content.clone();
 
-    let mut notebooks = state.open_notebooks.lock().unwrap();
+    let notebooks = state.open_notebooks.lock();
+    if notebooks.is_err() {
+        return HttpResponse::InternalServerError()
+            .json(json!({ "status": "error", "message": "Could not lock notebooks" }));
+    }
+
+    let mut notebooks = notebooks.unwrap();
     let notebook = match notebooks.get_mut(&notebook_uuid) {
         Some(notebook) => notebook,
         None => return HttpResponse::NotFound().json(json!({ "status": "Notebook not found" })),

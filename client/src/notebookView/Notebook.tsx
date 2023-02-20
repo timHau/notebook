@@ -15,7 +15,7 @@ function Notebook(props: NotebookProps) {
 
     const order = notebook.topology.display_order;
     return (
-        <div className="min-w-3/4 pt-5">
+        <div className="min-w-3/4 max-w-6xl pt-5">
             <div className="flex justify-between mb-5">
                 <h5 className="text-5xl">{notebook.title}</h5>
                 <div className="text-xs">

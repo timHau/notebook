@@ -144,7 +144,9 @@ impl Cell {
         }
 
         match &statement.node {
-            StmtKind::Import { names } => self.import_dependencies(&names, scope),
+            StmtKind::Import { names } | StmtKind::ImportFrom { names, .. } => {
+                self.import_dependencies(&names, scope)
+            }
 
             StmtKind::Assign { targets, value, .. } => {
                 for target in targets.iter() {
@@ -266,7 +268,6 @@ impl Cell {
             // StmtKind::Raise { exc, cause } => todo!(),
             // StmtKind::Try { body, handlers, orelse, finalbody } => todo!(),
             // StmtKind::Assert { test, msg } => todo!(),
-            // StmtKind::ImportFrom { module, names, level } => todo!(),
             // StmtKind::Global { names } => todo!(),
             StmtKind::Nonlocal { .. } => {}
             StmtKind::Pass => {}

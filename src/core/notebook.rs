@@ -53,7 +53,12 @@ impl Notebook {
                 Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
                 Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
                 Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap(),
-                Cell::new_reactive("add(10, 20)", &mut scope).unwrap(),
+                Cell::new_reactive("print(123)", &mut scope).unwrap(),
+                Cell::new_reactive(
+                    "from torch import nn\nfrom torch.utils.data import DataLoader\nfrom torchvision import datasets\nfrom torchvision.transforms import ToTensor\n\ntraining_data = datasets.FashionMNIST(\n  root='data',\n  train=True,\n  download=True,\n  transform=ToTensor\n)",
+                    &mut scope,
+                )
+                .unwrap(),
             ],
             &mut scope,
         )
@@ -75,10 +80,6 @@ impl Notebook {
             topology,
             title: String::from("Untitled Notebook"),
         }
-    }
-
-    pub fn get_cell_mut(&mut self, cell_uuid: &str) -> Option<&mut Cell> {
-        self.topology.get_cell_mut(cell_uuid)
     }
 
     pub fn eval_cell(

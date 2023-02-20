@@ -29,9 +29,12 @@ export const cellsSlice = createSlice({
                 state.mappings[uuid].isSynced = true;
             }
         },
+        unsyncCell: (state, action: PayloadAction<string>) => {
+            state.mappings[action.payload].isSynced = false;
+        }
     },
 });
 
-export const { init, updateBinding } = cellsSlice.actions;
+export const { init, updateBinding, unsyncCell } = cellsSlice.actions;
 
 export default cellsSlice.reducer;

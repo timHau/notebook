@@ -1,7 +1,7 @@
 import { CellBindingProps, CellEditorProps, CellProps } from "../types";
 import { RxTriangleRight, RxMagicWand, RxLinkBreak1, RxPencil1 } from "react-icons/rx";
 import Api from "../api/api";
-import { updateBinding } from "../store/cellSlice";
+import { updateBinding, unsyncCell } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { KeyboardEvent, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
@@ -47,6 +47,14 @@ function CellEditor(props: CellEditorProps) {
         }
     }
 
+    const dispatch = useAppDispatch();
+    function handleKeyChange(code: string) {
+        if (code !== localCode) {
+            dispatch(unsyncCell(cell.uuid));
+        }
+        setLocalCode(code);
+    }
+
     return (
         <div className="flex flex-col hover:cursor-pointer"
             onMouseOver={() => setShowCellToolbar(true)}
@@ -61,7 +69,7 @@ function CellEditor(props: CellEditorProps) {
                 <div className="w-full">
                     <CodeMirror
                         value={localCode}
-                        onChange={(code) => setLocalCode(code)}
+                        onChange={handleKeyChange}
                         onKeyDown={handleKeyDown}
                         theme={atomone}
                         extensions={[python()]}
@@ -104,11 +112,11 @@ function CellBindings(props: CellBindingProps) {
     }
 
     return (
-        <div className="flex  px-3 py-1 mb-2.5 rounded-md">
+        <div className="flex border-2 border-zinc-800 px-3 py-1 mb-2.5 rounded-md flex-col">
             {Object.keys(binding).map((key: string) => (
-                <div key={key} className="">
-                    <span className="text-xs text-slate-100 pr-1">{key === "RETURN" ? "" : key}</span>
-                    <span className="text-xs text-slate-100">{binding[key as any]}</span>
+                <div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
+                    <span className="pr-1">{key === "RETURN" ? "" : key}</span>
+                    <span className="">{binding[key as any]}</span>
                 </div>
             ))}
         </div>

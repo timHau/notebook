@@ -4,6 +4,7 @@ use super::cell::Cell;
 use itertools::Itertools;
 use pyo3::{prelude::*, types::PyDict};
 use std::{collections::HashMap, error::Error};
+use tracing::warn;
 
 #[derive(Debug, Clone)]
 pub struct Kernel {
@@ -14,11 +15,14 @@ pub struct Kernel {
 impl Kernel {
     pub fn new() -> Self {
         let version_info = Python::with_gil(move |py| {
-            let sys = py.import("sys").unwrap();
-            let version = sys.getattr("version").unwrap();
+            let sys = py.import("sys").expect("Error while importing sys");
+            let version = sys
+                .getattr("version")
+                .expect("Error while getting sys.version");
             version.to_string()
         });
         let version = version_info.split(' ').collect::<Vec<&str>>()[0];
+
         Self {
             version: version.to_string(),
             globals: Python::with_gil(|py| PyDict::new(py).into()),
@@ -61,7 +65,10 @@ impl Kernel {
                     ExecutionType::Eval => {
                         match py.eval(&code, Some(self.globals.as_ref(py)), Some(locals)) {
                             Ok(code) => res.insert("RETURN".to_string(), code.to_string()),
-                            Err(err) => return Err(err),
+                            Err(err) => {
+                                warn!("Error: {:#?}", err);
+                                return Err(err);
+                            }
                         };
                     }
                     ExecutionType::Exec => {
@@ -73,16 +80,22 @@ impl Kernel {
                                     }
                                 }
                             }
-                            Err(err) => return Err(err),
+                            Err(err) => {
+                                warn!("Error: {:#?}", err);
+                                return Err(err);
+                            }
                         };
                     }
                 }
             }
 
             Ok(res)
-        })?;
+        });
 
-        Ok(res)
+        match res {
+            Ok(res) => Ok(res),
+            Err(err) => Err(Box::new(err)),
+        }
     }
 }
 

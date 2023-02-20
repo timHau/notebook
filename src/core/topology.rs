@@ -84,6 +84,10 @@ impl Topology {
         for cell in self.cells.values() {
             for required_var in cell.required.iter() {
                 if let Some(other_uuid) = scope.get(required_var) {
+                    if other_uuid == &cell.uuid {
+                        continue;
+                    }
+
                     self.dependents
                         .entry(other_uuid.clone())
                         .or_insert_with(HashSet::new)
@@ -96,6 +100,7 @@ impl Topology {
                 }
             }
         }
+
         Ok(())
     }
 
