@@ -13,9 +13,6 @@ use api::{
     state::State,
 };
 use dotenv::dotenv;
-use kernel::kernel_client::{KernelClient, KernelMessage};
-use std::collections::HashMap;
-use tracing::info;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
@@ -28,16 +25,6 @@ async fn main() -> std::io::Result<()> {
         .expect("PORT must be a number");
     let client_url = std::env::var("CLIENT_URL").expect("CLIENT_URL must be set");
 
-    let kernel_client = KernelClient::new().expect("Could not create kernel client");
-    let msg = KernelMessage {
-        content: "print(123)\na = 1 + 2".to_string(),
-        locals: HashMap::new(),
-    };
-    kernel_client
-        .send_to_kernel(&msg)
-        .expect("Could not send message");
-
-    info!("Starting server on port {}", api_port);
     let data = Data::new(State::new());
     HttpServer::new(move || {
         let cors = Cors::default()

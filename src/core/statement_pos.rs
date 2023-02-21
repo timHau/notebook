@@ -1,7 +1,8 @@
 use itertools::Itertools;
 use rustpython_parser::ast::Location;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, Deserialize, Serialize)]
 pub enum ExecutionType {
     Exec,
     Eval,

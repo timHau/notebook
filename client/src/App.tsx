@@ -27,10 +27,11 @@ function App() {
         console.log(error);
       }
     }
-    initWs();
+    // initWs();
   }, []);
 
-  if (!notebook || !wsClient) {
+  // if (!notebook || !wsClient) {
+  if (!notebook) {
     return <div>Loading...</div>
   }
 

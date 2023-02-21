@@ -10,8 +10,8 @@ def main():
     # client = context.socket(zmq.REQ)
     # client.connect("tcp://localhost:8081")
 
-    server = context.socket(zmq.REP)
-    server.bind("tcp://*:8081")
+    # server = context.socket(zmq.REP)
+    # server.bind("tcp://*:8081")
 
     # for i in range(10):
     #     print(f"Sending {i}")
@@ -20,34 +20,73 @@ def main():
     #     print(f"Received reply {i} [ {message} ]")
     #     time.sleep(1)
 
+    # while True:
+    #     message = server.recv_string()
+    #     msg = json.loads(message)
+
+    #     locals = msg["locals"]
+    #     res = exec_code(msg["content"], locals)
+    #     locals["RETURN"] = res
+    #     print(f"Received request: {locals}")
+
+    #     res_msg = {
+    #         "content": "1234 back to you",
+    #         "locals": locals,
+    #     }
+    #     res_msg = json.dumps(res_msg)
+    #     server.send_string(res_msg)
+
+    socket = context.socket(zmq.PAIR)
+    socket.connect("tcp://localhost:8081")
+    print("Connected to server")
+
     while True:
-        message = server.recv_string()
+        message = socket.recv_string()
+        print(f"Received request: {message}")
         msg = json.loads(message)
 
         locals = msg["locals"]
-        res = exec_code(msg["content"], locals)
-        locals["RETURN"] = res
-        print(f"Received request: {locals}")
+        execution_type = msg["execution_type"]
+        if execution_type == "Exec":
+            res = exec_code(msg["content"], locals)
+            print(f"Exec result: {res}")
+            print(f"Locals: {locals}")
 
-        res_msg = {
-            "content": "1234 back to you",
-            "locals": locals,
-        }
-        res_msg = json.dumps(res_msg)
-        server.send_string(res_msg)
+            locals["RETURN"] = res
+            res_msg = json.dumps({
+                "locals": locals,
+            })
+            socket.send_string(res_msg)
+        elif execution_type == "Eval":
+            res = eval_code(msg["content"], locals)
+            print(f"Eval result: {res}")
+
+            locals["RETURN"] = res
+            res_msg = json.dumps({
+                "locals": locals,
+            })
+            socket.send_string(res_msg)
 
 
 def exec_code(code, locals):
     f = StringIO()
     with redirect_stdout(f):
-        exec(code, {}, locals)
+        try:
+            exec(code, {}, locals)
+        except Exception as e:
+            print(e)
+            return
     return f.getvalue()
 
 
 def eval_code(code, locals):
     f = StringIO()
     with redirect_stdout(f):
-        eval(code, {}, locals)
+        try:
+            eval(code, {}, locals)
+        except Exception as e:
+            print(e)
+            return
     return f.getvalue()
 
 

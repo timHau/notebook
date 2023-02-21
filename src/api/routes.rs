@@ -65,7 +65,15 @@ async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Resp
         None => return HttpResponse::NotFound().json(json!({ "status": "Notebook not found" })),
     };
 
-    match notebook.eval_cell(&cell_uuid, &content) {
+    let kernel_client = match state.kernel_client.lock() {
+        Ok(kernel_client) => kernel_client,
+        Err(_) => {
+            return HttpResponse::InternalServerError()
+                .json(json!({ "status": "error", "message": "Could not lock kernel client" }))
+        }
+    };
+
+    match notebook.eval_cell(&cell_uuid, &content, &kernel_client) {
         Ok(result) => HttpResponse::Ok().json(EvalResponse { result }),
         Err(err) => HttpResponse::InternalServerError()
             .json(json!({ "status": "error", "message": err.to_string() })),

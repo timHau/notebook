@@ -159,7 +159,7 @@ function CellBindings(props: CellBindingProps) {
                         Object.keys(value).map((k: string, i: number) => {
                             return (
                                 <span key={i}>
-                                    {k}: {formatBinding(value[k])}
+                                    {k}: {formatBinding(value[k as any])}
                                     {i !== Object.keys(value).length - 1 && <span>, </span>}
                                 </span>
                             )

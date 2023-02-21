@@ -1,4 +1,5 @@
 use super::{notebook::Scope, statement_pos::StatementPos};
+use itertools::Itertools;
 use nanoid::nanoid;
 use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
@@ -65,6 +66,18 @@ impl Cell {
 
     pub fn new_reactive(content: &str, scope: &mut Scope) -> Result<Self, ParseError> {
         Self::new(CellType::ReactiveCode, String::from(content), scope)
+    }
+
+    pub fn sorted_statements(&self) -> Vec<StatementPos> {
+        let statements = self.statements.clone();
+        statements
+            .into_iter()
+            .sorted_by(|pos_1, pos_2| {
+                let row_1 = [pos_1.row_start, pos_1.row_end];
+                let row_2 = [pos_2.row_start, pos_2.row_end];
+                row_1.cmp(&row_2)
+            })
+            .collect::<Vec<_>>()
     }
 
     fn unbind_all(&mut self) {
@@ -140,7 +153,7 @@ impl Cell {
             self.statements.push(statement_pos);
         }
 
-        println!("statement: {:#?}", statement);
+        // println!("statement: {:#?}", statement);
         match &statement.node {
             StmtKind::Import { names } | StmtKind::ImportFrom { names, .. } => {
                 self.import_dependencies(&names, scope)
