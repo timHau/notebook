@@ -30,7 +30,7 @@ async fn main() -> std::io::Result<()> {
 
     let kernel_client = KernelClient::new().expect("Could not create kernel client");
     let msg = KernelMessage {
-        content: "print(123)".to_string(),
+        content: "print(123)\na = 1 + 2".to_string(),
         locals: HashMap::new(),
     };
     kernel_client

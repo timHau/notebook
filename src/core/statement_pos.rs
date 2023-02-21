@@ -5,6 +5,7 @@ use rustpython_parser::ast::Location;
 pub enum ExecutionType {
     Exec,
     Eval,
+    Import,
 }
 
 #[derive(Debug, Clone)]

@@ -44,5 +44,12 @@ def exec_code(code, locals):
     return f.getvalue()
 
 
+def eval_code(code, locals):
+    f = StringIO()
+    with redirect_stdout(f):
+        eval(code, {}, locals)
+    return f.getvalue()
+
+
 if __name__ == "__main__":
     main()

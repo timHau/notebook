@@ -3,7 +3,7 @@ import { RxTriangleRight } from "react-icons/rx";
 import Api from "../api/api";
 import { updateBinding, unsyncCell } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { KeyboardEvent, useState } from "react";
+import { KeyboardEvent, ReactNode, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
@@ -128,14 +128,64 @@ function CellBindings(props: CellBindingProps) {
         return <span className="hidden"></span>
     }
 
+    function formatBinding(key: string): ReactNode {
+        let value = binding[key as any];
+
+        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
+            return <span className="text-gray-300">{value}</span>
+        }
+
+        if (Array.isArray(value)) {
+            return (
+                <span className="text-gray-300">
+                    [
+                    {(value as Array<any>).map((v: any, i: number) => {
+                        return (
+                            <span key={i}>
+                                {formatBinding(v)}
+                                {i !== value.length - 1 && <span>, </span>}
+                            </span>
+                        )
+                    })}
+                    ]
+                </span>
+            )
+        }
+
+        if (typeof value === "object") {
+            return (
+                <span className="text-gray-300">
+                    {
+                        Object.keys(value).map((k: string, i: number) => {
+                            return (
+                                <span key={i}>
+                                    {k}: {formatBinding(value[k])}
+                                    {i !== Object.keys(value).length - 1 && <span>, </span>}
+                                </span>
+                            )
+                        }
+                        )
+                    }
+                </span>
+            )
+        }
+
+        return (
+            <span className="text-gray-300">
+                { }
+            </span>
+        )
+    }
     return (
         <div className="flex border-2 border-zinc-800 px-3 py-1 mb-2.5 rounded-md flex-col">
-            {Object.keys(binding).map((key: string) => (
-                <div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
-                    <span className="pr-1">{key === "RETURN" ? "" : key}</span>
-                    <span className="">{binding[key as any]}</span>
-                </div>
-            ))}
+            {Object.keys(binding).map((key: string) => {
+                return (
+                    <div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
+                        <span className="pr-1">{key === "RETURN" ? "" : key + ":"}</span>
+                        <span className="">{formatBinding(key)}</span>
+                    </div>
+                );
+            })}
         </div>
     )
 }
