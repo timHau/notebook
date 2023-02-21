@@ -1,5 +1,5 @@
 mod cell;
 mod errors;
+pub mod kernel_client;
 pub mod notebook;
-pub mod statement_pos;
 mod topology;

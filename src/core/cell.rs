@@ -1,4 +1,4 @@
-use super::{notebook::Scope, statement_pos::StatementPos};
+use super::notebook::Scope;
 use itertools::Itertools;
 use nanoid::nanoid;
 use pyo3::{prelude::*, types::PyDict};
@@ -8,7 +8,8 @@ use rustpython_parser::{
     parser,
 };
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use serde_json::Value;
+use std::collections::{HashMap, HashSet};
 use tracing::log::warn;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -26,10 +27,7 @@ pub struct Cell {
     pub content: String,
 
     #[serde(skip)]
-    pub statements: Vec<StatementPos>,
-
-    #[serde(skip)]
-    pub locals: Option<Py<PyDict>>,
+    pub locals: HashMap<String, Value>,
 
     #[serde(skip)]
     pub bindings: HashSet<String>,
@@ -52,8 +50,7 @@ impl Cell {
             uuid: nanoid!(30),
             cell_type,
             content,
-            locals: Some(Python::with_gil(|py| PyDict::new(py).into())),
-            statements: Vec::new(),
+            locals: HashMap::new(),
             bindings: HashSet::new(),
             ignore_bindings: HashSet::new(),
             required: HashSet::new(),
@@ -68,23 +65,10 @@ impl Cell {
         Self::new(CellType::ReactiveCode, String::from(content), scope)
     }
 
-    pub fn sorted_statements(&self) -> Vec<StatementPos> {
-        let statements = self.statements.clone();
-        statements
-            .into_iter()
-            .sorted_by(|pos_1, pos_2| {
-                let row_1 = [pos_1.row_start, pos_1.row_end];
-                let row_2 = [pos_2.row_start, pos_2.row_end];
-                row_1.cmp(&row_2)
-            })
-            .collect::<Vec<_>>()
-    }
-
     fn unbind_all(&mut self) {
         self.bindings.clear();
         self.ignore_bindings.clear();
         self.required.clear();
-        self.statements.clear();
     }
 
     pub fn update_content(&mut self, content: &str, scope: &mut Scope) -> Result<(), ParseError> {
@@ -112,7 +96,7 @@ impl Cell {
                 let ast = parser::parse_program(&self.content, "<input>")?;
 
                 for statement in ast.iter() {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, true);
                 }
 
                 Ok(())
@@ -134,24 +118,22 @@ impl Cell {
         }
     }
 
-    fn handle_stmt_node(&mut self, statement: &Located<StmtKind>, scope: &mut Scope) {
-        let start = statement.location;
-        let end = statement.end_location.unwrap_or(start);
-        let statement_pos = match &statement.node {
-            StmtKind::Expr { .. } => StatementPos::eval_from(&start, &end),
-            _ => StatementPos::exec_from(&start, &end),
-        };
+    fn handle_stmt_node(
+        &mut self,
+        statement: &Located<StmtKind>,
+        scope: &mut Scope,
+        is_root: bool,
+    ) {
+        // if is_root {
+        //     let start = statement.location;
+        //     let end = statement.end_location.unwrap_or(start);
+        //     let statement_pos = match &statement.node {
+        //         StmtKind::Expr { .. } => StatementPos::eval_from(&start, &end),
+        //         _ => StatementPos::exec_from(&start, &end),
+        //     };
 
-        let mut has_intersection = false;
-        for pos in self.statements.iter() {
-            if pos.intersects(&statement_pos) {
-                has_intersection = true;
-                break;
-            }
-        }
-        if !has_intersection {
-            self.statements.push(statement_pos);
-        }
+        //     self.statements.push(statement_pos);
+        // }
 
         // println!("statement: {:#?}", statement);
         match &statement.node {
@@ -182,10 +164,10 @@ impl Cell {
             StmtKind::If { test, body, orelse } => {
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
             }
 
@@ -195,7 +177,7 @@ impl Cell {
                     // self.handle_expr_node(&case.pattern.node, scope);
                     // self.handle_expr_node(&case.guard.node, scope);
                     for statement in &case.body {
-                        self.handle_stmt_node(&statement, scope);
+                        self.handle_stmt_node(&statement, scope, false);
                     }
                 }
             }
@@ -214,7 +196,7 @@ impl Cell {
 
                 scope.insert(name.to_string(), self.uuid.clone());
                 for statement in body {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
             }
 
@@ -235,10 +217,10 @@ impl Cell {
                 println!("statement: {:#?}", statement);
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
             }
 
@@ -246,10 +228,10 @@ impl Cell {
                 // self.handle_expr_node(&target.node, scope);
                 // self.handle_expr_node(&iter.node, scope);
                 for statement in body {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
                 for statement in orelse {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
             }
 
@@ -265,7 +247,7 @@ impl Cell {
                     self.handle_expr_node(&base.node, scope);
                 }
                 for statement in body {
-                    self.handle_stmt_node(&statement, scope);
+                    self.handle_stmt_node(&statement, scope, false);
                 }
                 for decorator in decorator_list {
                     self.handle_expr_node(&decorator.node, scope);

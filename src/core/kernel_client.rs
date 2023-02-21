@@ -1,4 +1,3 @@
-use crate::core::statement_pos::ExecutionType;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{collections::HashMap, error::Error, fmt};
@@ -26,7 +25,6 @@ impl KernelClient {
         let msg = serde_json::to_string(msg)?;
         self.socket.send(&msg, 0)?;
         let msg = self.socket.recv_string(0)?;
-        info!("received: {:#?}", msg);
         match msg {
             Ok(msg) => {
                 let res: KernelResponse = serde_json::from_str(&msg)?;
@@ -41,6 +39,13 @@ impl KernelClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelResponse {
     pub locals: HashMap<String, Value>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ExecutionType {
+    Exec,
+    Eval,
+    Import,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

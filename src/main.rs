@@ -1,6 +1,5 @@
 mod api;
 mod core;
-mod kernel;
 
 use actix_cors::Cors;
 use actix_web::{
