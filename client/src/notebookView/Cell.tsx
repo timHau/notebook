@@ -1,5 +1,5 @@
-import { CellBindingProps, CellEditorProps, CellProps } from "../types";
-import { RxTriangleRight, RxMagicWand, RxLinkBreak1, RxPencil1 } from "react-icons/rx";
+import { CellT } from "../types";
+import { RxTriangleRight } from "react-icons/rx";
 import Api from "../api/api";
 import { updateBinding, unsyncCell } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
@@ -7,7 +7,14 @@ import { KeyboardEvent, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
+import { WsClientT } from "../api/ws";
 import "./Cell.css"
+
+type CellProps = {
+    cellUuid: string;
+    notebookUuid: string;
+    wsClient: WsClientT;
+}
 
 function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
@@ -33,6 +40,11 @@ function Cell(props: CellProps) {
             <CellBindings cellUuid={cellUuid} />
         </div >
     )
+}
+
+export type CellEditorProps = {
+    cell: CellT;
+    handleEval: (content: string) => void;
 }
 
 function CellEditor(props: CellEditorProps) {
@@ -102,6 +114,11 @@ function CellEditor(props: CellEditorProps) {
                 </div>} */}
         </div>
     )
+}
+
+
+export type CellBindingProps = {
+    cellUuid: string;
 }
 
 function CellBindings(props: CellBindingProps) {

@@ -6,7 +6,7 @@ import { NotebookT } from './types';
 
 function App() {
   const [notebook, setNotebook] = useState<NotebookT>();
-  const [ws, setWs] = useState<WsClientT>();
+  const [wsClient, setWsClient] = useState<WsClientT>();
 
   useEffect(() => {
     async function initNotebook() {
@@ -22,24 +22,24 @@ function App() {
     async function initWs() {
       let wsUrl = import.meta.env.VITE_WS_URL;
       try {
-        setWs(new WsClient(wsUrl));
+        setWsClient(new WsClient(wsUrl));
       } catch (error) {
         console.log(error);
       }
     }
-    // initWs();
+    initWs();
   }, []);
 
-  if (!notebook) {
+  if (!notebook || !wsClient) {
     return <div>Loading...</div>
   }
 
   console.log(notebook);
-  console.log(ws);
+  console.log(wsClient);
 
   return (
-    <div className="flex justify-center">
-      <Notebook notebook={notebook} />
+    <div className=" flex justify-center">
+      <Notebook notebook={notebook} wsClient={wsClient} />
     </div>
   )
 }

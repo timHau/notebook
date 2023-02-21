@@ -59,6 +59,10 @@ impl Notebook {
                     &mut scope,
                 )
                 .unwrap(),
+                Cell::new_reactive(
+                    "import asyncio\n\nasync def main():\n  print('hello')\n\nasyncio.run(main())",
+                    &mut scope,
+                ).unwrap(),
             ],
             &mut scope,
         )

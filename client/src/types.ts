@@ -33,21 +33,3 @@ export type NotebookT = {
     title: string;
 };
 
-
-export type NotebookProps = {
-    notebook: any;
-}
-
-export type CellProps = {
-    cellUuid: string;
-    notebookUuid: string;
-}
-
-export type CellEditorProps = {
-    cell: CellT;
-    handleEval: (content: string) => void;
-}
-
-export type CellBindingProps = {
-    cellUuid: string;
-}

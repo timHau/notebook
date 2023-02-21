@@ -49,8 +49,8 @@ impl Kernel {
                 .statements
                 .iter()
                 .sorted_by(|pos_1, pos_2| {
-                    let row_1 = pos_1.row;
-                    let row_2 = pos_2.row;
+                    let row_1 = [pos_1.row_start, pos_1.row_end];
+                    let row_2 = [pos_2.row_start, pos_2.row_end];
                     row_1.cmp(&row_2)
                 })
                 .collect::<Vec<_>>();

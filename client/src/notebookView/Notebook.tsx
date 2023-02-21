@@ -1,11 +1,17 @@
 import Cell from "./Cell";
 import { init } from "../store/cellSlice";
-import { CellT, NotebookProps } from "../types"
+import { CellT } from "../types"
 import { useAppDispatch } from "../store/hooks";
 import { useEffect } from "react";
+import { WsClientT } from "../api/ws";
+
+export type NotebookProps = {
+    notebook: any;
+    wsClient: WsClientT;
+}
 
 function Notebook(props: NotebookProps) {
-    const { notebook } = props;
+    const { notebook, wsClient } = props;
     const dispatch = useAppDispatch()
 
     useEffect(() => {
@@ -24,7 +30,12 @@ function Notebook(props: NotebookProps) {
                 </div>
             </div>
             <div>
-                {order.map((cellUuid: string) => <Cell key={cellUuid} cellUuid={cellUuid} notebookUuid={notebook.uuid} />)}
+                {order.map((cellUuid: string) => <Cell
+                    key={cellUuid}
+                    cellUuid={cellUuid}
+                    notebookUuid={notebook.uuid}
+                    wsClient={wsClient}
+                />)}
             </div>
         </div>
     )

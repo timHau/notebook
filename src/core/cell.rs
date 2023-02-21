@@ -143,6 +143,7 @@ impl Cell {
             self.statements.push(statement_pos);
         }
 
+        println!("statement: {:#?}", statement);
         match &statement.node {
             StmtKind::Import { names } | StmtKind::ImportFrom { names, .. } => {
                 self.import_dependencies(&names, scope)
