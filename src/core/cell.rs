@@ -1,7 +1,4 @@
-use super::{
-    notebook::{Notebook, Scope},
-    statement_pos::StatementPos,
-};
+use super::{notebook::Scope, statement_pos::StatementPos};
 use nanoid::nanoid;
 use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
@@ -11,7 +8,7 @@ use rustpython_parser::{
 };
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
-use tracing::{info, log::warn};
+use tracing::log::warn;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CellType {

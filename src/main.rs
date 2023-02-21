@@ -1,5 +1,6 @@
 mod api;
 mod core;
+mod kernel;
 
 use actix_cors::Cors;
 use actix_web::{
@@ -12,6 +13,8 @@ use api::{
     state::State,
 };
 use dotenv::dotenv;
+use kernel::kernel_client::{KernelClient, KernelMessage};
+use std::collections::HashMap;
 use tracing::info;
 
 #[actix_web::main]
@@ -23,15 +26,16 @@ async fn main() -> std::io::Result<()> {
         .unwrap_or_else(|_| "8080".to_string())
         .parse::<u16>()
         .expect("PORT must be a number");
-    let zmq_port = std::env::var("ZMQ_PORT")
-        .unwrap_or_else(|_| "80801".to_string())
-        .parse::<u16>()
-        .expect("ZMQ_PORT must be a number");
     let client_url = std::env::var("CLIENT_URL").expect("CLIENT_URL must be set");
 
-    info!("ZMQ port {}", zmq_port);
-    let ctx = zmq::Context::new();
-    let subscriber = ctx.socket(zmq::SUB).expect("Could not create socket");
+    let kernel_client = KernelClient::new().expect("Could not create kernel client");
+    let msg = KernelMessage {
+        content: "print(123)".to_string(),
+        locals: HashMap::new(),
+    };
+    kernel_client
+        .send_to_kernel(&msg)
+        .expect("Could not send message");
 
     info!("Starting server on port {}", api_port);
     let data = Data::new(State::new());
