@@ -1,4 +1,7 @@
-use super::{cell::CellType, errors::NotebookErrors};
+use super::{
+    cell::{CellType, LocalValue},
+    errors::NotebookErrors,
+};
 use crate::{
     api::routes::EvalResult,
     core::{
@@ -55,7 +58,7 @@ impl Notebook {
                 Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap(),
                 Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
                 Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
-                Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += a", &mut scope).unwrap(),
+                Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += 1", &mut scope).unwrap(),
                 Cell::new_reactive("print(123)", &mut scope).unwrap(),
                 Cell::new_reactive(
                     "from torch import nn\nfrom torch.utils.data import DataLoader\nfrom torchvision import datasets\nfrom torchvision.transforms import ToTensor\n\ntraining_data = datasets.FashionMNIST(\n  root='data',\n  train=True,\n  download=True,\n  transform=ToTensor\n)",
@@ -108,16 +111,19 @@ impl Notebook {
                     CellType::ReactiveCode => {
                         let dependencies = topology.get_dependencies(&cell.uuid);
                         info!("dependencies: {:#?}", dependencies);
-                        let locals = Self::locals_from_dependencies(&cell, &dependencies);
-                        let msg = KernelMessage {
-                            content: cell.content.clone(),
-                            locals: locals.clone(),
-                            execution_type: ExecutionType::Exec,
-                        };
-                        let res = kernel_client.send_to_kernel(&msg)?;
-                        info!("res: {:#?}", res);
-                        let locals = res.locals;
-                        cell.locals = locals;
+                        for statement in cell.statements.iter() {
+                            let locals = Self::locals_from_dependencies(&cell, &dependencies);
+                            let msg = KernelMessage {
+                                content: statement.content.clone(),
+                                locals: locals.clone(),
+                                execution_type: statement.execution_type.clone(),
+                            };
+                            let res = kernel_client.send_to_kernel(&msg)?;
+                            info!("res: {:#?}", res);
+                            cell.locals.extend(res.locals.clone());
+                            info!("cell.locals: {:#?}", cell.locals);
+                            result.insert(cell.uuid.clone(), cell.locals.clone());
+                        }
                     }
                     _ => return Err(Box::new(NotebookErrors::NotYetImplemented)),
                 }
@@ -127,8 +133,13 @@ impl Notebook {
         Ok(result)
     }
 
-    fn locals_from_dependencies(cell: &Cell, dependencies: &[&Cell]) -> HashMap<String, Value> {
+    fn locals_from_dependencies(
+        cell: &Cell,
+        dependencies: &[&Cell],
+    ) -> HashMap<String, LocalValue> {
         let mut locals = HashMap::new();
+        locals.extend(cell.locals.clone());
+
         for dependency in dependencies.iter() {
             for (key, value) in dependency.locals.clone().iter() {
                 if cell.required.contains(key) {

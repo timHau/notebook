@@ -1,7 +1,5 @@
-use super::notebook::Scope;
-use itertools::Itertools;
+use super::{kernel_client::ExecutionType, notebook::Scope, statement::Statement};
 use nanoid::nanoid;
-use pyo3::{prelude::*, types::PyDict};
 use rustpython_parser::{
     ast::{AliasData, ExprContext, ExprKind, Located, StmtKind},
     error::ParseError,
@@ -10,13 +8,19 @@ use rustpython_parser::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use tracing::log::warn;
+use tracing::{info, warn};
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CellType {
     NonReactiveCode,
     ReactiveCode,
     Markdown,
+}
+
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct LocalValue {
+    pub value: Value,
+    pub local_type: ExecutionType,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
@@ -27,7 +31,7 @@ pub struct Cell {
     pub content: String,
 
     #[serde(skip)]
-    pub locals: HashMap<String, Value>,
+    pub locals: HashMap<String, LocalValue>,
 
     #[serde(skip)]
     pub bindings: HashSet<String>,
@@ -37,6 +41,9 @@ pub struct Cell {
 
     #[serde(skip)]
     ignore_bindings: HashSet<String>,
+
+    #[serde(skip)]
+    pub statements: Vec<Statement>,
 }
 
 impl Cell {
@@ -54,6 +61,7 @@ impl Cell {
             bindings: HashSet::new(),
             ignore_bindings: HashSet::new(),
             required: HashSet::new(),
+            statements: Vec::new(),
         };
 
         cell.setup_local_vars(scope)?;
@@ -69,6 +77,7 @@ impl Cell {
         self.bindings.clear();
         self.ignore_bindings.clear();
         self.required.clear();
+        self.statements.clear();
     }
 
     pub fn update_content(&mut self, content: &str, scope: &mut Scope) -> Result<(), ParseError> {
@@ -118,25 +127,24 @@ impl Cell {
         }
     }
 
-    fn handle_stmt_node(
-        &mut self,
-        statement: &Located<StmtKind>,
-        scope: &mut Scope,
-        is_root: bool,
-    ) {
-        // if is_root {
-        //     let start = statement.location;
-        //     let end = statement.end_location.unwrap_or(start);
-        //     let statement_pos = match &statement.node {
-        //         StmtKind::Expr { .. } => StatementPos::eval_from(&start, &end),
-        //         _ => StatementPos::exec_from(&start, &end),
-        //     };
-
-        //     self.statements.push(statement_pos);
-        // }
+    fn handle_stmt_node(&mut self, stmtKind: &Located<StmtKind>, scope: &mut Scope, is_root: bool) {
+        if is_root {
+            let start = stmtKind.location;
+            let end = stmtKind.end_location.unwrap_or(start);
+            let statement = match &stmtKind.node {
+                StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
+                StmtKind::FunctionDef { .. }
+                | StmtKind::ClassDef { .. }
+                | StmtKind::AsyncFunctionDef { .. } => {
+                    Statement::new_definition(&start, &end, &self.content)
+                }
+                _ => Statement::new_exec(&start, &end, &self.content),
+            };
+            self.statements.push(statement);
+        }
 
         // println!("statement: {:#?}", statement);
-        match &statement.node {
+        match &stmtKind.node {
             StmtKind::Import { names } | StmtKind::ImportFrom { names, .. } => {
                 self.import_dependencies(&names, scope)
             }
@@ -214,7 +222,7 @@ impl Cell {
             }
 
             StmtKind::While { test, body, orelse } => {
-                println!("statement: {:#?}", statement);
+                println!("statement: {:#?}", stmtKind);
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
                     self.handle_stmt_node(&statement, scope, false);
@@ -266,7 +274,7 @@ impl Cell {
             StmtKind::Pass => {}
             StmtKind::Break => {}
             StmtKind::Continue => {}
-            _ => warn!("Unsupported statement: {:#?}", statement),
+            _ => warn!("Unsupported statement: {:#?}", stmtKind),
         };
     }
 

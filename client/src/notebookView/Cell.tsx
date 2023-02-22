@@ -129,63 +129,16 @@ function CellBindings(props: CellBindingProps) {
     }
 
     function formatBinding(key: string): ReactNode {
-        let value = binding[key as any];
-
-        if (typeof value === "string" || typeof value === "number" || typeof value === "boolean") {
-            return <span className="text-gray-300">{value}</span>
-        }
-
-        if (Array.isArray(value)) {
-            return (
-                <span className="text-gray-300">
-                    [
-                    {(value as Array<any>).map((v: any, i: number) => {
-                        return (
-                            <span key={i}>
-                                {formatBinding(v)}
-                                {i !== value.length - 1 && <span>, </span>}
-                            </span>
-                        )
-                    })}
-                    ]
-                </span>
-            )
-        }
-
-        if (typeof value === "object") {
-            return (
-                <span className="text-gray-300">
-                    {
-                        Object.keys(value).map((k: string, i: number) => {
-                            return (
-                                <span key={i}>
-                                    {k}: {formatBinding(value[k as any])}
-                                    {i !== Object.keys(value).length - 1 && <span>, </span>}
-                                </span>
-                            )
-                        }
-                        )
-                    }
-                </span>
-            )
-        }
-
-        return (
-            <span className="text-gray-300">
-                { }
-            </span>
-        )
+        let { value, local_type } = binding[key as any];
+        if (!value || local_type === "Definition") return
+        return (<div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
+            <span className="pr-1">{key === "" ? "" : key + ":"}</span>
+            <span className="">{value}</span>
+        </div>)
     }
     return (
         <div className="flex border-2 border-zinc-800 px-3 py-1 mb-2.5 rounded-md flex-col">
-            {Object.keys(binding).map((key: string) => {
-                return (
-                    <div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
-                        <span className="pr-1">{key === "RETURN" ? "" : key + ":"}</span>
-                        <span className="">{formatBinding(key)}</span>
-                    </div>
-                );
-            })}
+            {Object.keys(binding).map((key: string) => formatBinding(key))}
         </div>
     )
 }

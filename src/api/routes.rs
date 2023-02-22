@@ -1,9 +1,12 @@
 use super::ws::Ws;
-use crate::{api::state::State, core::notebook::Notebook};
+use crate::{
+    api::state::State,
+    core::{cell::LocalValue, notebook::Notebook},
+};
 use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
-use serde_json::json;
+use serde_json::{json, Value};
 use std::collections::HashMap;
 use tracing::info;
 
@@ -45,7 +48,7 @@ pub struct EvalResponse {
     pub result: EvalResult,
 }
 
-pub type EvalResult = HashMap<String, HashMap<String, String>>; // cell_uuid -> (var_name -> var_value)
+pub type EvalResult = HashMap<String, HashMap<String, LocalValue>>; // cell_uuid -> (var_name -> var_value)
 
 #[post("/eval")]
 async fn eval(req: web::Json<EvalRequest>, state: web::Data<State>) -> impl Responder {

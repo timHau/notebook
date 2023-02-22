@@ -10,8 +10,15 @@ export type CellT = {
     isSynced?: boolean;
 };
 
+export type LocalsT = {
+    [key: string]: BindingT,
+};
+
 export type BindingT = {
-    [key: string]: string;
+    [key: string]: {
+        value: string;
+        local_type: string;
+    };
 };
 
 export type NotebookT = {

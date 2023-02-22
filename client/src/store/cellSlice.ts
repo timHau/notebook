@@ -1,11 +1,11 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { BindingT, CellT } from "../types";
+import { BindingT, CellT, LocalsT } from "../types";
 
 interface cellsState {
     mappings: {
         [key: string]: CellT
     },
-    bindings: BindingT
+    bindings: LocalsT
 }
 
 const initialState: cellsState = {
@@ -22,10 +22,11 @@ export const cellsSlice = createSlice({
                 state.mappings[cell.uuid] = cell;
             }
         },
-        updateBinding: (state, action: PayloadAction<BindingT>) => {
+        updateBinding: (state, action: PayloadAction<LocalsT>) => {
             let cells = action.payload;
             for (let uuid in action.payload) {
-                state.bindings[uuid] = cells[uuid];
+                let locals = cells[uuid];
+                state.bindings[uuid] = locals;
                 state.mappings[uuid].isSynced = true;
             }
         },

@@ -1,5 +1,5 @@
+use super::cell::LocalValue;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
 use std::{collections::HashMap, error::Error, fmt};
 use tracing::info;
 use zmq::Socket;
@@ -38,20 +38,21 @@ impl KernelClient {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelResponse {
-    pub locals: HashMap<String, Value>,
+    pub locals: HashMap<String, LocalValue>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExecutionType {
     Exec,
     Eval,
-    Import,
+    Definition,
+    Module,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelMessage {
     pub content: String,
-    pub locals: HashMap<String, Value>,
+    pub locals: HashMap<String, LocalValue>,
     pub execution_type: ExecutionType,
 }
 
