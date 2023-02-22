@@ -16,4 +16,15 @@ export default class Api {
         });
         return await response.json();
     }
+
+    static async reorderCells(notebookUuid: string, newOrder: string[]) {
+        const response = await fetch(`${this.#apiUrl}/reorder`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ notebookUuid, newOrder })
+        });
+        return await response.json();
+    }
 }

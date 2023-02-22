@@ -17,7 +17,3 @@ tracing = "0.1.37"
 tracing-subscriber = "0.3"
 itertools = "0.10.5"
 zmq = "0.9"
-
-[dependencies.pyo3]
-version = "0.18.1"
-features = ["auto-initialize"]

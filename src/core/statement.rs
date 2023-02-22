@@ -26,8 +26,6 @@ impl Statement {
 
     pub fn new_definition(start: &Location, end: &Location, content: &str) -> Self {
         let content = Self::extract_content(start, end, content);
-        // let content_bytes = content.as_bytes();
-        // let content = general_purpose::STANDARD.encode(content_bytes);
         Self {
             execution_type: ExecutionType::Definition,
             content,

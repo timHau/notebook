@@ -149,6 +149,10 @@ impl Notebook {
         }
         locals
     }
+
+    pub fn reorder_cells(&mut self, cell_uuids: &[String]) {
+        self.topology.reorder_cells(cell_uuids);
+    }
 }
 
 impl From<&str> for Notebook {

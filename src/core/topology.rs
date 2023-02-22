@@ -184,6 +184,10 @@ impl Topology {
 
         Ok(sorted)
     }
+
+    pub fn reorder_cells(&mut self, cell_uuids: &[String]) {
+        self.display_order = cell_uuids.to_vec();
+    }
 }
 
 #[cfg(test)]

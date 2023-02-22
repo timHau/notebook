@@ -16,11 +16,6 @@ type CellProps = {
     wsClient: WsClientT;
 }
 
-type NotebookError = {
-    message: string;
-    status: string;
-}
-
 function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
 
@@ -111,21 +106,10 @@ function CellEditor(props: CellEditorProps) {
                     />
                 </div>
             </div>
-            {/* {showCellToolbar &&
+            {showCellToolbar &&
                 <div className="flex text-xs justify-center mb-1">
-                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
-                        <RxMagicWand className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
-                        <span className="ml-0.5 mr-1">reactive code</span>
-                    </div>
-                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
-                        <RxLinkBreak1 className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
-                        <span className="ml-0.5 mr-1">non-reactive code</span>
-                    </div>
-                    <div className="flex items-center mr-1 bg-zinc-800 p-1 rounded-md hover:bg-zinc-700">
-                        <RxPencil1 className="text-gray-300 mr-1 w-4 h-4 hover:cursor-pointer" />
-                        <span>markdown</span>
-                    </div>
-                </div>} */}
+                    TEST
+                </div>}
         </div>
     )
 }
