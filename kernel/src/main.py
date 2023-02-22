@@ -81,11 +81,19 @@ def main():
                 print(f"Sending response: {res_msg}")
                 socket.send_string(res_msg)
             case "Definition":
-                decoded_bytes = base64.b64decode(msg["content"])
-                definition = decoded_bytes.decode("utf-8")
+                definition = msg["content"]
 
                 res = exec_code(definition, locals_decoded)
-                print(f"locals (before): {locals_decoded}")
+                print(f"Locals (after exec): {res}")
+                if res.startswith("[Error]"):
+                    error_msg = json.dumps({
+                        "locals": locals_decoded,
+                        "error": res,
+                    })
+                    socket.send_string(error_msg)
+                    continue
+
+                print(f"locals (before): {locals_decoded}, res: {res}")
                 locals_decoded = locals_encode(
                     locals_decoded, locals, "Definition")
                 print(f"locals (after): {locals_decoded}")
@@ -150,8 +158,7 @@ def exec_code(code, locals):
         try:
             exec(code, {}, locals)
         except Exception as e:
-            print(e)
-            return
+            print(f"[Error]: {e}")
     return f.getvalue()
 
 
@@ -163,8 +170,7 @@ def eval_code(code, locals):
             if res is not None and res != "":
                 print(res)
         except Exception as e:
-            print(e)
-            return
+            print(f"[Error]: {e}")
     return f.getvalue()
 
 

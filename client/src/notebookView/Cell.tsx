@@ -16,16 +16,29 @@ type CellProps = {
     wsClient: WsClientT;
 }
 
+type NotebookError = {
+    message: string;
+    status: string;
+}
+
 function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
+
+    const [error, setError] = useState<String>("");
 
     const dispatch = useAppDispatch();
     async function handleEval(content: string) {
         try {
-            const { result } = await Api.evalCell(notebookUuid, cellUuid, content);
-            dispatch(updateBinding(result));
-        } catch (error) {
-            console.error(error);
+            const res = await Api.evalCell(notebookUuid, cellUuid, content);
+            if (res.status === "error") {
+                setError(res.message);
+                return;
+            }
+
+            dispatch(updateBinding(res.result));
+        } catch (error: any) {
+            console.log(error);
+            setError(error.message);
         }
     }
 
@@ -38,6 +51,7 @@ function Cell(props: CellProps) {
         <div>
             <CellEditor cell={cell} handleEval={handleEval} />
             <CellBindings cellUuid={cellUuid} />
+            {error && <div className="text-red-500">{error}</div>}
         </div >
     )
 }

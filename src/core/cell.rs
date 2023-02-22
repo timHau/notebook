@@ -133,11 +133,15 @@ impl Cell {
             let end = stmtKind.end_location.unwrap_or(start);
             let statement = match &stmtKind.node {
                 StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
-                StmtKind::FunctionDef { .. }
+
+                StmtKind::Import { .. }
+                | StmtKind::ImportFrom { .. }
+                | StmtKind::FunctionDef { .. }
                 | StmtKind::ClassDef { .. }
                 | StmtKind::AsyncFunctionDef { .. } => {
                     Statement::new_definition(&start, &end, &self.content)
                 }
+
                 _ => Statement::new_exec(&start, &end, &self.content),
             };
             self.statements.push(statement);

@@ -1,4 +1,5 @@
 use super::cell::LocalValue;
+use crate::core::errors::NotebookErrors;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt};
 use tracing::info;
@@ -28,6 +29,10 @@ impl KernelClient {
         match msg {
             Ok(msg) => {
                 let res: KernelResponse = serde_json::from_str(&msg)?;
+                if let Some(error) = res.error {
+                    return Err(Box::new(NotebookErrors::KernelError(error)));
+                }
+
                 info!("received: {:#?}", res);
                 Ok(res)
             }
@@ -39,6 +44,7 @@ impl KernelClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct KernelResponse {
     pub locals: HashMap<String, LocalValue>,
+    error: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -46,7 +52,6 @@ pub enum ExecutionType {
     Exec,
     Eval,
     Definition,
-    Module,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

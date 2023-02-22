@@ -1,8 +1,5 @@
-use base64::{engine::general_purpose, Engine as _};
-use rustpython_parser::ast::Location;
-use tracing::info;
-
 use super::kernel_client::ExecutionType;
+use rustpython_parser::ast::Location;
 
 #[derive(Debug, Clone)]
 pub struct Statement {
@@ -29,8 +26,8 @@ impl Statement {
 
     pub fn new_definition(start: &Location, end: &Location, content: &str) -> Self {
         let content = Self::extract_content(start, end, content);
-        let content_bytes = content.as_bytes();
-        let content = general_purpose::STANDARD.encode(content_bytes);
+        // let content_bytes = content.as_bytes();
+        // let content = general_purpose::STANDARD.encode(content_bytes);
         Self {
             execution_type: ExecutionType::Definition,
             content,
