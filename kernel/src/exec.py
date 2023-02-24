@@ -57,7 +57,7 @@ def exec_code(code, locals):
         try:
             exec(code, {}, locals)
         except Exception as e:
-            print(f"[Error]: {e}")
+            raise e
     return f.getvalue()
 
 
@@ -67,7 +67,14 @@ execution_type = sys.argv[3]
 locals_full = json.loads(locals_str)
 
 locals_decoded = locals_decode(locals_full)
-exec_code(code, locals_decoded)
-locals = locals_encode(locals_decoded, locals_full, execution_type)
-
-print(json.dumps(locals))
+try:
+    exec_code(code, locals_decoded)
+    locals = locals_encode(locals_decoded, locals_full, execution_type)
+    print(json.dumps(locals))
+except Exception as e:
+    locals = locals_encode(locals_decoded, locals_full, execution_type)
+    err = {
+        "error": str(e),
+        "locals": locals
+    }
+    print(json.dumps(err))

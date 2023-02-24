@@ -59,19 +59,27 @@ def eval_code(code, locals):
             if res is not None and res != "":
                 locals["<stdout>"] = res
         except Exception as e:
-            print(f"[Error]: {e}")
+            raise e
     return f.getvalue()
 
 
 code = sys.argv[1]
 locals_str = sys.argv[2]
+execution_type = sys.argv[3]
 locals_full = json.loads(locals_str)
 
 locals_decoded = locals_decode(locals_full)
-res = eval_code(code, locals_decoded)
-if res != "" and res is not None:
-    locals_decoded["<stdout>"] = res
+try:
+    res = eval_code(code, locals_decoded)
+    if res != "" and res is not None:
+        locals_decoded["<stdout>"] = res
 
-locals = locals_encode(locals_decoded, locals_full, "Eval")
-
-print(json.dumps(locals))
+    locals = locals_encode(locals_decoded, locals_full, execution_type)
+    print(json.dumps(locals))
+except Exception as e:
+    locals = locals_encode(locals_decoded, locals_full, execution_type)
+    err = {
+        "error": str(e),
+        "locals": locals
+    }
+    print(json.dumps(err))

@@ -10,10 +10,10 @@ def main():
     socket.bind("tcp://*:8081")
     print("Connected to server")
 
-    def handle_err(res, locals):
+    def handle_err(err, locals):
         error_msg = json.dumps({
             "locals": locals,
-            "error": res,
+            "error": err,
         })
         socket.send_string(error_msg)
 
@@ -34,18 +34,21 @@ def main():
         content = msg["content"]
         execution_type = msg["execution_type"]
 
-        print("/////////////////////////////")
-        print(f"Execution type: {execution_type}")
-        print(f"Content: {content}")
-
         if execution_type == "Eval":
-            for line in run_cmd(["python", "eval.py", content, json.dumps(full_locals)]):
+            for line in run_cmd(["python", "eval.py", content, json.dumps(full_locals), execution_type]):
                 locals = json.loads(line)
-                handle_send(locals)
+                if locals["error"]:
+                    handle_err(locals["error"], locals["locals"])
+                else:
+                    handle_send(locals)
         else:
             for line in run_cmd(["python", "exec.py", content, json.dumps(full_locals), execution_type]):
                 locals = json.loads(line)
-                handle_send(locals)
+                print(f"Locals: {locals}")
+                if locals["error"]:
+                    handle_err(locals["error"], locals["locals"])
+                else:
+                    handle_send(locals)
 
 
 def run_cmd(cmd):
