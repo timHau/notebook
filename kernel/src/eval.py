@@ -68,7 +68,10 @@ locals_str = sys.argv[2]
 locals_full = json.loads(locals_str)
 
 locals_decoded = locals_decode(locals_full)
-eval_code(code, locals_decoded)
+res = eval_code(code, locals_decoded)
+if res != "" and res is not None:
+    locals_decoded["<stdout>"] = res
+
 locals = locals_encode(locals_decoded, locals_full, "Eval")
 
 print(json.dumps(locals))

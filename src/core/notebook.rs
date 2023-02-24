@@ -111,15 +111,19 @@ impl Notebook {
                 match cell.cell_type {
                     CellType::ReactiveCode => {
                         let dependencies = topology.get_dependencies(&cell.uuid);
-                        info!("dependencies: {:#?}", dependencies);
                         for statement in cell.statements.iter() {
+                            // gather all the locals from the dependencies
                             let locals = Self::locals_from_dependencies(&cell, &dependencies);
+
                             let msg = KernelMessage {
                                 content: statement.content.clone(),
                                 locals: locals.clone(),
                                 execution_type: statement.execution_type.clone(),
                             };
                             let res = kernel_client.send_to_kernel(&msg)?;
+
+                            // TODO check if the new locals overwrite any of the existing ones
+
                             info!("res: {:#?}", res);
                             cell.locals.extend(res.locals.clone());
                             info!("cell.locals: {:#?}", cell.locals);
