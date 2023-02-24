@@ -16,7 +16,8 @@ impl KernelClient {
             .parse::<u16>()?;
         let ctx = zmq::Context::new();
         let socket = ctx.socket(zmq::PAIR)?;
-        socket.bind(&format!("tcp://*:{:?}", zmq_port))?;
+        // socket.bind(&format!("tcp://*:{:?}", zmq_port))?;
+        socket.connect(&format!("tcp://localhost:{:?}", zmq_port))?;
 
         Ok(Self { socket })
     }

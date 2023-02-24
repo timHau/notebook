@@ -3,7 +3,7 @@ use super::{
     errors::NotebookErrors,
 };
 use crate::{
-    api::routes::EvalResult,
+    api::ws::EvalResult,
     core::{
         cell::Cell,
         kernel_client::{ExecutionType, KernelClient, KernelMessage},
@@ -56,6 +56,7 @@ impl Notebook {
         let mut topology = Topology::from_vec(
             vec![
                 Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap(),
+                Cell::new_reactive("import time\n\nfor i in range(20):\n    print(i)\n    time.sleep(1)", &mut scope).unwrap(),
                 Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
                 Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
                 Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += 1", &mut scope).unwrap(),

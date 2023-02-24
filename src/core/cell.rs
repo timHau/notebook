@@ -77,6 +77,7 @@ impl Cell {
         self.bindings.clear();
         self.ignore_bindings.clear();
         self.required.clear();
+        self.locals.clear();
         self.statements.clear();
     }
 

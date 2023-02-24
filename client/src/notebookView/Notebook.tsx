@@ -5,6 +5,7 @@ import { useAppDispatch } from "../store/hooks";
 import { useEffect, useState } from "react";
 import { WsClientT } from "../api/ws";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
+import { updateBinding } from "../store/cellSlice";
 import Api from "../api/api";
 
 export type NotebookProps = {
@@ -17,6 +18,13 @@ function Notebook(props: NotebookProps) {
     const [order, setOrder] = useState<string[]>(notebook.topology.display_order);
 
     const dispatch = useAppDispatch()
+
+    useEffect(() => {
+        // wsClient.ws.onmessage = (event) => {
+        //     console.log(event.data);
+        // }
+    }, []);
+
     useEffect(() => {
         let cells: CellT[] = notebook.topology.display_order.map((uuid: string) => notebook.topology.cells[uuid]);
         dispatch(init(cells));
@@ -62,7 +70,7 @@ function Notebook(props: NotebookProps) {
                                             {...provided.dragHandleProps}
                                             ref={provided.innerRef}
                                         >
-                                            < Cell
+                                            <Cell
                                                 key={cellUuid}
                                                 cellUuid={cellUuid}
                                                 notebookUuid={notebook.uuid}

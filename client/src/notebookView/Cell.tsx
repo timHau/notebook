@@ -1,14 +1,14 @@
 import { CellT } from "../types";
 import { RxTriangleRight } from "react-icons/rx";
-import Api from "../api/api";
-import { updateBinding, unsyncCell } from "../store/cellSlice";
+import { unsyncCell, updateBinding } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
 import { KeyboardEvent, ReactNode, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
-import { WsClientT } from "../api/ws";
+import { WsClientT, WsMessage } from "../api/ws";
 import "./Cell.css"
+import Api from "../api/api";
 
 type CellProps = {
     cellUuid: string;
@@ -17,19 +17,25 @@ type CellProps = {
 }
 
 function Cell(props: CellProps) {
-    const { cellUuid, notebookUuid } = props;
+    const { cellUuid, notebookUuid, wsClient } = props;
 
     const [error, setError] = useState<String>("");
 
     const dispatch = useAppDispatch();
-    async function handleEval(content: string) {
+    async function handleEval(data: string) {
         try {
-            const res = await Api.evalCell(notebookUuid, cellUuid, content);
+            const res = await Api.evalCell(notebookUuid, cellUuid, data);
             if (res.status === "error") {
                 setError(res.message);
                 return;
             }
-
+            // let wsMessage: WsMessage = {
+            //     cmd: "Run",
+            //     cellUuid,
+            //     data,
+            //     notebookUuid
+            // }
+            // wsClient.send(wsMessage)
             dispatch(updateBinding(res.result));
         } catch (error: any) {
             console.log(error);
@@ -106,10 +112,10 @@ function CellEditor(props: CellEditorProps) {
                     />
                 </div>
             </div>
-            {showCellToolbar &&
+            {/* {showCellToolbar &&
                 <div className="flex text-xs justify-center mb-1">
                     TEST
-                </div>}
+                </div>} */}
         </div>
     )
 }

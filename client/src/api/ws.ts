@@ -1,13 +1,13 @@
 export type WsClientT = {
+    ws: WebSocket;
     send: (data: WsMessage) => void;
-    onmessage: (event: WsMessageEvent) => void;
-    onclose: (event: WsCloseEvent) => void;
-    onerror: (event: WsErrorEvent) => void;
 };
 
 export type WsMessage = {
-    type: string;
+    cmd: string;
     data: any;
+    cellUuid: string;
+    notebookUuid: string;
 };
 
 export type WsMessageEvent = {
@@ -26,25 +26,13 @@ export type WsErrorEvent = {
 };
 
 export class WsClient implements WsClientT {
-    #ws: WebSocket;
+    ws: WebSocket;
 
     constructor(url: string) {
-        this.#ws = new WebSocket(url);
+        this.ws = new WebSocket(url);
     }
 
     send(data: WsMessage) {
-        this.#ws.send(JSON.stringify(data));
-    }
-
-    onmessage(event: WsMessageEvent) {
-        this.#ws.onmessage = event => event;
-    }
-
-    onclose(event: WsCloseEvent) {
-        this.#ws.onclose = event => event;
-    }
-
-    onerror(event: WsErrorEvent) {
-        this.#ws.onerror = event => event;
+        this.ws.send(JSON.stringify(data));
     }
 }
