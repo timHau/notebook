@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
-import { BindingT, CellT, LocalsT } from "../types";
+import { CellT, LocalsT } from "../types";
 
 interface cellsState {
     mappings: {
@@ -17,7 +17,7 @@ export const cellsSlice = createSlice({
     name: "cells",
     initialState,
     reducers: {
-        init: (state, action: PayloadAction<CellT[]>) => {
+        initCell: (state, action: PayloadAction<CellT[]>) => {
             for (let cell of action.payload) {
                 state.mappings[cell.uuid] = cell;
             }
@@ -36,6 +36,6 @@ export const cellsSlice = createSlice({
     },
 });
 
-export const { init, updateBinding, unsyncCell } = cellsSlice.actions;
+export const { initCell, updateBinding, unsyncCell } = cellsSlice.actions;
 
 export default cellsSlice.reducer;

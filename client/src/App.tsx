@@ -1,12 +1,14 @@
 import { useEffect, useState } from 'react'
 import Api from './api/api'
 import Notebook from './notebookView/Notebook';
-import { WsClient, WsClientT } from './api/ws';
+import { useAppDispatch } from './store/hooks';
+import { initWs } from './store/wsSlice';
 import { NotebookT } from './types';
 
 function App() {
   const [notebook, setNotebook] = useState<NotebookT>();
-  const [wsClient, setWsClient] = useState<WsClientT>();
+
+  const dispatch = useAppDispatch()
 
   useEffect(() => {
     async function initNotebook() {
@@ -19,28 +21,26 @@ function App() {
     }
     initNotebook();
 
-    async function initWs() {
+    async function initWebSocket() {
       let wsUrl = import.meta.env.VITE_WS_URL;
       try {
-        setWsClient(new WsClient(wsUrl));
       } catch (error) {
+        dispatch(initWs(wsUrl));
         console.log(error);
       }
     }
-    // initWs();
+    initWebSocket();
   }, []);
 
-  // if (!notebook || !wsClient) {
   if (!notebook) {
     return <div>Loading...</div>
   }
 
   console.log(notebook);
-  console.log(wsClient);
 
   return (
     <div className=" flex justify-center">
-      <Notebook notebook={notebook} wsClient={wsClient} />
+      <Notebook notebook={notebook} />
     </div>
   )
 }

@@ -37,7 +37,7 @@ def main():
         if execution_type == "Eval":
             for line in run_cmd(["python", "eval.py", content, json.dumps(full_locals), execution_type]):
                 locals = json.loads(line)
-                if locals["error"]:
+                if "error" in locals:
                     handle_err(locals["error"], locals["locals"])
                 else:
                     handle_send(locals)
@@ -45,7 +45,7 @@ def main():
             for line in run_cmd(["python", "exec.py", content, json.dumps(full_locals), execution_type]):
                 locals = json.loads(line)
                 print(f"Locals: {locals}")
-                if locals["error"]:
+                if "error" in locals:
                     handle_err(locals["error"], locals["locals"])
                 else:
                     handle_send(locals)

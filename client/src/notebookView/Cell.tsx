@@ -6,18 +6,16 @@ import { KeyboardEvent, ReactNode, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
-import { WsClientT, WsMessage } from "../api/ws";
-import "./Cell.css"
 import Api from "../api/api";
+import "./Cell.css"
 
 type CellProps = {
     cellUuid: string;
     notebookUuid: string;
-    wsClient: WsClientT;
 }
 
 function Cell(props: CellProps) {
-    const { cellUuid, notebookUuid, wsClient } = props;
+    const { cellUuid, notebookUuid } = props;
 
     const [error, setError] = useState<String>("");
 
