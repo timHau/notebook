@@ -6,7 +6,6 @@ interface cellsState {
     mappings: {
         [key: string]: CellT
     },
-    bindings: LocalsT
     output: {
         [key: string]: WsMessage
     },
@@ -14,7 +13,6 @@ interface cellsState {
 
 const initialState: cellsState = {
     mappings: {},
-    bindings: {},
     output: {},
 }
 
@@ -27,14 +25,6 @@ export const cellsSlice = createSlice({
                 state.mappings[cell.uuid] = cell;
             }
         },
-        updateBinding: (state, action: PayloadAction<LocalsT>) => {
-            let cells = action.payload;
-            for (let uuid in action.payload) {
-                let locals = cells[uuid];
-                state.bindings[uuid] = locals;
-                state.mappings[uuid].isSynced = true;
-            }
-        },
         unsyncCell: (state, action: PayloadAction<string>) => {
             state.mappings[action.payload].isSynced = false;
         },
@@ -45,6 +35,6 @@ export const cellsSlice = createSlice({
     },
 });
 
-export const { initCell, updateBinding, unsyncCell, addOutput } = cellsSlice.actions;
+export const { initCell, unsyncCell, addOutput } = cellsSlice.actions;
 
 export default cellsSlice.reducer;

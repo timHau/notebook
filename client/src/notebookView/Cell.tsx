@@ -1,8 +1,8 @@
-import { CellT } from "../types";
+import { CellT, LocalsT } from "../types";
 import { RxTriangleRight } from "react-icons/rx";
 import { unsyncCell } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { KeyboardEvent, ReactNode, useEffect, useState } from "react";
+import { KeyboardEvent, ReactNode, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
@@ -39,9 +39,8 @@ function Cell(props: CellProps) {
     return (
         <div>
             <CellEditor cell={cell} handleEval={handleEval} />
-            <CellBindings cellUuid={cellUuid} />
             {hasError && <div className="text-red-500">{out.data}</div>}
-            {/* <div className="text-green-500">TEST {out}</div> */}
+            {hasOutput && <CellOutput locals={out.locals} />}
         </div >
     )
 }
@@ -110,28 +109,25 @@ function CellEditor(props: CellEditorProps) {
 }
 
 
-export type CellBindingProps = {
-    cellUuid: string;
+export type CellOutputProps = {
+    locals: LocalsT;
 }
 
-function CellBindings(props: CellBindingProps) {
-    const bindings = useAppSelector((state) => state.cells.bindings);
-    const binding = bindings[props.cellUuid];
-    if (!binding || Object.keys(binding).length === 0) {
-        return <span className="hidden"></span>
-    }
+function CellOutput(props: CellOutputProps) {
+    const { locals } = props;
 
-    function formatBinding(key: string): ReactNode {
-        let { value, local_type } = binding[key as any];
+    function formatOutput(key: string): ReactNode {
+        let { value, local_type } = locals[key as any];
         if (!value || local_type === "Definition") return
         return (<div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
             <span className="pr-1">{key === "" ? "" : key + ":"}</span>
             <span className="">{value}</span>
         </div>)
     }
+
     return (
         <div className="flex border-2 border-zinc-800 px-3 py-1 mb-2.5 rounded-md flex-col">
-            {Object.keys(binding).map((key: string) => formatBinding(key))}
+            {Object.keys(locals).map((key: string) => formatOutput(key))}
         </div>
     )
 }
