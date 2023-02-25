@@ -1,5 +1,5 @@
 use super::cell::LocalValue;
-use crate::{api::ws::Ws, core::errors::NotebookErrors};
+use crate::{api::ws_client::WsClient, core::errors::NotebookErrors};
 use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt, sync::mpsc};
@@ -10,7 +10,7 @@ pub struct KernelClient {
     socket: Socket,
     rx: mpsc::Receiver<KernelClientMsg>,
     pub tx: mpsc::Sender<KernelClientMsg>,
-    ws_mapping: HashMap<String, Addr<Ws>>, // notebook_uuid, ws sender
+    ws_mapping: HashMap<String, Addr<WsClient>>, // notebook_uuid, ws sender
 }
 
 impl KernelClient {
@@ -84,7 +84,7 @@ impl KernelClient {
 
 #[derive(Debug, Clone)]
 pub enum KernelClientMsg {
-    InitWs(String, Addr<Ws>),
+    InitWs(String, Addr<WsClient>),
     KernelMsg(KernelMsg),
 }
 

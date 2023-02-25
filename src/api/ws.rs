@@ -1,104 +1,54 @@
-use super::routes::EvalResult;
-use crate::core::{kernel_client::KernelMsg, notebook::Notebook};
-use actix::{Actor, Handler, StreamHandler};
+use crate::{
+    api::{state::State, ws_client::WsClient},
+    core::kernel_client::KernelClientMsg,
+};
+use actix_web::{get, web, HttpRequest, HttpResponse};
 use actix_web_actors::ws;
-use serde::{Deserialize, Serialize};
-use tracing::{info, log::warn};
+use serde::Deserialize;
+use serde_json::json;
+use tracing::info;
 
-pub struct Ws {
-    pub notebook: Notebook,
+#[derive(Deserialize)]
+struct WsQuery {
+    #[serde(rename = "notebookUuid")]
+    notebook_uuid: String,
 }
 
-impl Actor for Ws {
-    type Context = ws::WebsocketContext<Self>;
+#[get("/")]
+async fn ws_route(
+    req: HttpRequest,
+    state: web::Data<State>,
+    query: web::Query<WsQuery>,
+    stream: web::Payload,
+) -> Result<HttpResponse, actix_web::Error> {
+    let notebook_uuid = query.notebook_uuid.clone();
+    info!("Opening websocket for notebook {}", notebook_uuid);
 
-    fn started(&mut self, _ctx: &mut Self::Context) {
-        info!("WS session started");
-
-        // ctx.run_interval(Duration::from_secs(1), |act, ctx| {
-        //     act.tx.send(KernelMsg::Ping).unwrap();
-        //     ctx.text(serde_json::to_string(&KernelMsg::Ping).unwrap());
-        // });
+    let notebooks = state.open_notebooks.lock();
+    if notebooks.is_err() {
+        return Ok(HttpResponse::InternalServerError()
+            .json(json!({ "status": "error", "message": "Could not lock notebooks" })));
     }
-}
+    let notebooks = notebooks.unwrap();
+    let notebook = match notebooks.get(&notebook_uuid) {
+        Some(notebook) => notebook,
+        None => return Ok(HttpResponse::NotFound().json(json!({ "status": "Notebook not found" }))),
+    };
 
-impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Ws {
-    fn handle(&mut self, msg: Result<ws::Message, ws::ProtocolError>, ctx: &mut Self::Context) {
-        match msg {
-            Ok(ws::Message::Text(text)) => {
-                self.handle_text(text.to_string(), ctx);
-            }
-
-            Err(e) => {
-                println!("Error: {:?}", e);
-            }
-
-            _ => warn!("Unhandled message {:?}", msg),
+    let kernel_sender = match state.kernel_sender.lock() {
+        Ok(kernel_sender) => kernel_sender,
+        Err(_) => {
+            return Ok(HttpResponse::InternalServerError()
+                .json(json!({ "status": "error", "message": "Could not lock kernel sender" })));
         }
-    }
-}
+    };
+    let kernel_sender = kernel_sender.clone();
 
-impl Handler<KernelMsg> for Ws {
-    type Result = ();
+    let ws_socket = WsClient::new(notebook);
+    let (addr, res) = ws::WsResponseBuilder::new(ws_socket, &req, stream).start_with_addr()?;
 
-    fn handle(&mut self, msg: KernelMsg, ctx: &mut Self::Context) {
-        ctx.text(serde_json::to_string(&msg).unwrap());
-    }
-}
+    let kernel_init_msg = KernelClientMsg::InitWs(notebook.uuid.clone(), addr.clone());
+    kernel_sender.send(kernel_init_msg).unwrap();
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-struct WsMessage {
-    cmd: WsCmds,
-    data: String,
-
-    #[serde(rename = "cellUuid")]
-    cell_uuid: Option<String>,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-enum WsCmds {
-    Run,
-    Ping,
-    Pong,
-}
-
-#[derive(Serialize)]
-pub struct WsResponse {
-    pub result: EvalResult,
-    pub error: Option<String>,
-}
-
-impl Ws {
-    pub fn new(notebook: &Notebook) -> Self {
-        Self {
-            notebook: notebook.clone(),
-        }
-    }
-
-    pub fn handle_text(&mut self, text: String, ctx: &mut ws::WebsocketContext<Self>) {
-        let msg: WsMessage = match serde_json::from_str(&text) {
-            Ok(msg) => msg,
-            Err(e) => {
-                warn!("Could not parse message: {}", e);
-                return;
-            }
-        };
-
-        match msg.cmd {
-            WsCmds::Run => match self.notebook.eval_cell(&msg.cell_uuid.unwrap(), &msg.data) {
-                Ok(_) => info!("Evaluated cell"),
-                Err(e) => warn!("Could not evaluate cell: {}", e),
-            },
-            WsCmds::Ping => {
-                let response = WsMessage {
-                    cmd: WsCmds::Pong,
-                    data: String::new(),
-                    cell_uuid: Some(String::new()),
-                };
-
-                ctx.text(serde_json::to_string(&response).unwrap());
-            }
-            WsCmds::Pong => {}
-        }
-    }
+    Ok(res)
 }
