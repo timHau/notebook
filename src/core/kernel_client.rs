@@ -1,12 +1,19 @@
-use super::cell::LocalValue;
-use crate::core::errors::NotebookErrors;
+use super::{
+    cell::{Cell, LocalValue},
+    statement::Statement,
+};
+use crate::{api::ws_client::WsClient, core::errors::NotebookErrors};
+use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, fmt};
-use tracing::info;
+use std::{collections::HashMap, error::Error, fmt, sync::mpsc};
+use tracing::{info, log::warn};
 use zmq::Socket;
 
 pub struct KernelClient {
     socket: Socket,
+    rx: mpsc::Receiver<KernelClientMsg>,
+    pub tx: mpsc::Sender<KernelClientMsg>,
+    ws_mapping: HashMap<String, Addr<WsClient>>, // notebook_uuid, ws sender
 }
 
 impl KernelClient {
@@ -16,35 +23,81 @@ impl KernelClient {
             .parse::<u16>()?;
         let ctx = zmq::Context::new();
         let socket = ctx.socket(zmq::PAIR)?;
-        socket.bind(&format!("tcp://*:{:?}", zmq_port))?;
+        // socket.bind(&format!("tcp://*:{:?}", zmq_port))?;
+        socket.connect(&format!("tcp://localhost:{:?}", zmq_port))?;
 
-        Ok(Self { socket })
+        let (tx, rx) = mpsc::channel();
+
+        Ok(Self {
+            socket,
+            rx,
+            tx,
+            ws_mapping: HashMap::new(),
+        })
     }
 
-    pub fn send_to_kernel(&self, msg: &KernelMessage) -> Result<KernelResponse, Box<dyn Error>> {
-        info!("sending: {:#?}", msg);
-        let msg = serde_json::to_string(msg)?;
-        self.socket.send(&msg, 0)?;
-        let msg = self.socket.recv_string(0)?;
-        match msg {
-            Ok(msg) => {
-                let res: KernelResponse = serde_json::from_str(&msg)?;
-                if let Some(error) = res.error {
-                    return Err(Box::new(NotebookErrors::KernelError(error)));
+    pub fn start(&mut self) {
+        loop {
+            match self.rx.recv() {
+                Ok(msg) => match msg {
+                    KernelClientMsg::InitWs(uuid, sender) => {
+                        self.ws_mapping.insert(uuid, sender);
+                    }
+                    KernelClientMsg::MsgToKernel(msg) => {
+                        let _res = self.send_to_kernel(&msg);
+                    }
+                    _ => warn!("Unhandled message {:?}", msg),
+                },
+                Err(_e) => {
+                    info!("Could not receive message");
                 }
-
-                info!("received: {:#?}", res);
-                Ok(res)
             }
-            Err(_e) => Err(Box::new(KernelClientErrors::CouldNotParse)),
         }
     }
-}
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KernelResponse {
-    pub locals: HashMap<String, LocalValue>,
-    error: Option<String>,
+    pub fn send_to_kernel(&self, msg: &MsgToKernel) -> Result<(), Box<dyn Error>> {
+        info!("sending message to kernel: {:#?}", msg);
+        let num_messages = msg
+            .execution_cells
+            .iter()
+            .fold(0, |acc, cell| acc + cell.statements.len());
+        info!("num_messages: {}", num_messages);
+
+        let msg = serde_json::to_string(msg)?;
+        self.socket.send(&msg, 0)?;
+
+        for _ in 0..num_messages {
+            let msg = self.socket.recv_string(0)?;
+            match msg {
+                Ok(msg) => {
+                    let res: MsgFromKernel = serde_json::from_str(&msg)?;
+                    info!("Received message from kernel: {:#?}", res);
+
+                    let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
+                        Some(ws_conn) => ws_conn,
+                        None => {
+                            warn!("Could not find ws connection");
+                            continue;
+                        }
+                    };
+                    if let Some(err) = &res.error {
+                        warn!("Error from kernel: {}", err);
+                        ws_conn.do_send(res);
+                        break;
+                    }
+
+                    ws_conn.do_send(res);
+                }
+                Err(_e) => {
+                    warn!("Could not parse message");
+                    break;
+                }
+            }
+        }
+
+        info!("Finished sending messages to kernel {}", num_messages);
+        Ok(())
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,11 +107,30 @@ pub enum ExecutionType {
     Definition,
 }
 
+#[derive(Debug, Clone)]
+pub enum KernelClientMsg {
+    InitWs(String, Addr<WsClient>),
+    MsgToKernel(MsgToKernel),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KernelMessage {
-    pub content: String,
+pub struct MsgToKernel {
+    pub notebook_uuid: String,
+    pub cell_uuid: String,
+    pub execution_cells: Vec<Cell>,
+    pub locals_of_deps: Vec<HashMap<String, LocalValue>>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsgFromKernel {
+    pub notebook_uuid: String,
+    pub cell_uuid: String,
     pub locals: HashMap<String, LocalValue>,
-    pub execution_type: ExecutionType,
+    pub error: Option<String>,
+}
+
+impl Message for MsgFromKernel {
+    type Result = ();
 }
 
 #[derive(Debug)]

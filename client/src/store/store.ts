@@ -2,6 +2,9 @@ import { configureStore } from '@reduxjs/toolkit';
 import cellsReducer from "./cellSlice";
 
 const store = configureStore({
+    middleware: (getDefaultMiddleware) => getDefaultMiddleware({
+        serializableCheck: false,
+    }),
     reducer: {
         cells: cellsReducer,
     },

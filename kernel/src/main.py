@@ -1,147 +1,102 @@
 import zmq
 import json
-import dill
-import base64
-from io import StringIO
-from contextlib import redirect_stdout
+import subprocess
+
+context = zmq.Context()
+socket = context.socket(zmq.PAIR)
+# socket.connect("tcp://localhost:8081")
+socket.bind("tcp://*:8081")
+print("Connected to server")
 
 
 def main():
-    context = zmq.Context()
-    socket = context.socket(zmq.PAIR)
-    socket.connect("tcp://localhost:8081")
-    print("Connected to server")
 
     while True:
         message = socket.recv_string()
-        print(f"Received request: {message}")
         msg = json.loads(message)
 
-        locals = msg["locals"]
-        locals_decoded = locals_decode(locals)
-        print(f"Locals: {locals_decoded}")
-        match msg["execution_type"]:
-            case "Exec":
-                res = exec_code(msg["content"], locals_decoded)
-                print(f"Locals: {locals_decoded}")
-                locals_decoded = locals_encode(locals_decoded, locals, "Exec")
-                locals_decoded["<stdout>"] = {
-                    "local_type": "Exec",
-                    "value": res,
-                }
+        notebook_uuid = msg["notebook_uuid"]
+        execution_cells = msg["execution_cells"]
+        locals_of_deps = msg["locals_of_deps"]
 
-                res_msg = json.dumps({
-                    "locals": locals_decoded,
-                })
-                print(f"Sending response: {res_msg}")
-                socket.send_string(res_msg)
-            case "Eval":
-                res = eval_code(msg["content"], locals_decoded)
+        acc_locals = {}
 
-                print(f"Locals (after eval): {locals_decoded}")
-                locals_decoded = locals_encode(locals_decoded, locals, "Eval")
-                locals_decoded["<stdout>"] = {
-                    "local_type": "Eval",
-                    "value": res,
-                }
+        for i in range(len(execution_cells)):
+            try:
+                cell = execution_cells[i]
+                cell_locals = locals_of_deps[i]
 
-                res_msg = json.dumps({
-                    "locals": locals_decoded,
-                })
-                print(f"Sending response: {res_msg}")
-                socket.send_string(res_msg)
-            case "Definition":
-                definition = msg["content"]
+                for key, value in cell_locals.items():
+                    acc_locals[key] = value
 
-                res = exec_code(definition, locals_decoded)
-                print(f"Locals (after exec): {res}")
-                if res.startswith("[Error]"):
-                    error_msg = json.dumps({
-                        "locals": locals_decoded,
-                        "error": res,
-                    })
-                    socket.send_string(error_msg)
-                    continue
+                print(f"Executing cell: {cell}")
+                statements = cell["statements"]
+                cell_uuid = cell["uuid"]
 
-                print(f"locals (before): {locals_decoded}, res: {res}")
-                locals_decoded = locals_encode(
-                    locals_decoded, locals, "Definition")
-                print(f"locals (after): {locals_decoded}")
-
-                res_msg = json.dumps({
-                    "locals": locals_decoded,
-                })
-                print(f"Sending response: {res_msg}")
-                socket.send_string(res_msg)
-            case _:
-                print("Unknown execution type")
-                pass
+                for statement in statements:
+                    try:
+                        run_statement(statement, acc_locals,
+                                      notebook_uuid, cell_uuid)
+                    except Exception as e:
+                        raise e
+            except Exception as e:
+                break
 
 
-def locals_encode(locals, full_locals, new_type):
-    res = {}
+def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
+    execution_type = statement["execution_type"]
+    content = statement["content"]
 
-    for key, value in locals.items():
-        if key in full_locals:
-            execution_type = full_locals[key]["local_type"]
-            if execution_type == "Definition":
-                dumped = dill.dumps(value)
-                res[key] = {
-                    "local_type": execution_type,
-                    "value": base64.b64encode(dumped).decode("utf-8")
-                }
-            else:
-                res[key] = {
-                    "local_type": execution_type,
-                    "value": value,
-                }
+    print(f"Executing: {content}")
+
+    cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
+    for out in run_cmd(["python", cmd_file, content, json.dumps(acc_locals), execution_type]):
+        locals = json.loads(out)
+
+        for key, value in locals.items():
+            acc_locals[key] = value
+
+        print(f"Received: {json.dumps(acc_locals, indent=2)}")
+
+        if "error" in acc_locals:
+            handle_err(notebook_uuid, cell_uuid,
+                       acc_locals["error"], acc_locals["locals"])
+            raise Exception(acc_locals["error"])
         else:
-            if new_type == "Definition":
-                dumped = dill.dumps(value)
-                res[key] = {
-                    "local_type": new_type,
-                    "value": base64.b64encode(dumped).decode("utf-8")
-                }
-            else:
-                res[key] = {
-                    "local_type": new_type,
-                    "value": value,
-                }
-
-    return res
+            handle_send(notebook_uuid, cell_uuid, acc_locals)
 
 
-def locals_decode(locals):
-    res = {}
-    for key, value in locals.items():
-        if value["local_type"] == "Definition":
-            decoded_bytes = base64.b64decode(value["value"])
-            res[key] = dill.loads(decoded_bytes)
-        else:
-            res[key] = value["value"]
-    return res
+def handle_err(notebook_uuid, cell_uuid, err, locals):
+    error_msg = json.dumps({
+        "notebook_uuid": notebook_uuid,
+        "cell_uuid": cell_uuid,
+        "locals": locals,
+        "error": err,
+    })
+    print(f"Sending error: {error_msg}")
+    socket.send_string(error_msg)
 
 
-def exec_code(code, locals):
-    f = StringIO()
-    with redirect_stdout(f):
-        try:
-            exec(code, {}, locals)
-        except Exception as e:
-            print(f"[Error]: {e}")
-    return f.getvalue()
+def handle_send(notebook_uuid, cell_uuid, locals):
+    res_msg = json.dumps({
+        "notebook_uuid": notebook_uuid,
+        "cell_uuid": cell_uuid,
+        "locals": locals,
+        # "error": None,
+    })
+    print(f"Sending response: {res_msg}")
+    socket.send_string(res_msg)
 
 
-def eval_code(code, locals):
-    f = StringIO()
-    with redirect_stdout(f):
-        try:
-            res = eval(code, {}, locals)
-            if res is not None and res != "":
-                print(res)
-        except Exception as e:
-            print(f"[Error]: {e}")
-    return f.getvalue()
+def run_cmd(cmd):
+    popen = subprocess.Popen(cmd, stdout=subprocess.PIPE,
+                             stderr=subprocess.PIPE, universal_newlines=True)
+    for stdout_line in iter(popen.stdout.readline, ""):
+        yield stdout_line
+    popen.stdout.close()
+    return_code = popen.wait()
+    if return_code:
+        raise subprocess.CalledProcessError(return_code, cmd)
 
 
 if __name__ == "__main__":

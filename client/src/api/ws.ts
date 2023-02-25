@@ -1,13 +1,21 @@
 export type WsClientT = {
+    ws: WebSocket;
     send: (data: WsMessage) => void;
-    onmessage: (event: WsMessageEvent) => void;
-    onclose: (event: WsCloseEvent) => void;
-    onerror: (event: WsErrorEvent) => void;
 };
 
+export enum WsCmds {
+    Run = 'Run',
+    Res = 'Res',
+    Err = 'Err',
+    Ping = 'Ping',
+    Pong = 'Pong',
+}
+
 export type WsMessage = {
-    type: string;
-    data: any;
+    cmd: WsCmds;
+    data?: any;
+    cellUuid: string;
+    locals?: any;
 };
 
 export type WsMessageEvent = {
@@ -24,27 +32,3 @@ export type WsErrorEvent = {
     type: string;
     message: string;
 };
-
-export class WsClient implements WsClientT {
-    #ws: WebSocket;
-
-    constructor(url: string) {
-        this.#ws = new WebSocket(url);
-    }
-
-    send(data: WsMessage) {
-        this.#ws.send(JSON.stringify(data));
-    }
-
-    onmessage(event: WsMessageEvent) {
-        this.#ws.onmessage = event => event;
-    }
-
-    onclose(event: WsCloseEvent) {
-        this.#ws.onclose = event => event;
-    }
-
-    onerror(event: WsErrorEvent) {
-        this.#ws.onerror = event => event;
-    }
-}

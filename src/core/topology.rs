@@ -51,7 +51,6 @@ impl Topology {
             if next_content == cell.content {
                 return Ok(());
             }
-
             cell.update_content(next_content, scope)?;
             self.build(scope)?;
         }
