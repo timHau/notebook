@@ -73,16 +73,8 @@ impl KernelClient {
                         )))
                     }
                 };
-
                 ws_conn.do_send(res);
-                // match ws_conn.send(res.clone()) {
-                //     Ok(_) => Ok(()),
-                //     Err(_e) => {
-                //         return Err(Box::new(NotebookErrors::KernelError(
-                //             "Could not send to ws".to_string(),
-                //         )))
-                //     }
-                // }
+
                 Ok(())
             }
             Err(_e) => Err(Box::new(KernelClientErrors::CouldNotParse)),

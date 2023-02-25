@@ -8,7 +8,7 @@ use rustpython_parser::{
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::{HashMap, HashSet};
-use tracing::{info, warn};
+use tracing::warn;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub enum CellType {
@@ -128,11 +128,16 @@ impl Cell {
         }
     }
 
-    fn handle_stmt_node(&mut self, stmtKind: &Located<StmtKind>, scope: &mut Scope, is_root: bool) {
+    fn handle_stmt_node(
+        &mut self,
+        stmt_kind: &Located<StmtKind>,
+        scope: &mut Scope,
+        is_root: bool,
+    ) {
         if is_root {
-            let start = stmtKind.location;
-            let end = stmtKind.end_location.unwrap_or(start);
-            let statement = match &stmtKind.node {
+            let start = stmt_kind.location;
+            let end = stmt_kind.end_location.unwrap_or(start);
+            let statement = match &stmt_kind.node {
                 StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
 
                 StmtKind::Import { .. }
@@ -149,7 +154,7 @@ impl Cell {
         }
 
         // println!("statement: {:#?}", statement);
-        match &stmtKind.node {
+        match &stmt_kind.node {
             StmtKind::Import { names } | StmtKind::ImportFrom { names, .. } => {
                 self.import_dependencies(&names, scope)
             }
@@ -227,7 +232,7 @@ impl Cell {
             }
 
             StmtKind::While { test, body, orelse } => {
-                println!("statement: {:#?}", stmtKind);
+                println!("statement: {:#?}", stmt_kind);
                 self.handle_expr_node(&test.node, scope);
                 for statement in body {
                     self.handle_stmt_node(&statement, scope, false);
@@ -279,7 +284,7 @@ impl Cell {
             StmtKind::Pass => {}
             StmtKind::Break => {}
             StmtKind::Continue => {}
-            _ => warn!("Unsupported statement: {:#?}", stmtKind),
+            _ => warn!("Unsupported statement: {:#?}", stmt_kind),
         };
     }
 

@@ -1,35 +1,24 @@
 use super::routes::EvalResult;
-use crate::core::{
-    kernel_client::{KernelClientMsg, KernelMsg},
-    notebook::Notebook,
-};
-use actix::{Actor, AsyncContext, Handler, StreamHandler};
+use crate::core::{kernel_client::KernelMsg, notebook::Notebook};
+use actix::{Actor, Handler, StreamHandler};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
-use std::{
-    sync::mpsc::{self, Sender},
-    thread,
-    time::Duration,
-};
 use tracing::{info, log::warn};
 
 pub struct Ws {
     pub notebook: Notebook,
-    pub tx: mpsc::Sender<KernelMsg>,
-    rx: mpsc::Receiver<KernelMsg>,
 }
 
 impl Actor for Ws {
     type Context = ws::WebsocketContext<Self>;
 
-    fn started(&mut self, ctx: &mut Self::Context) {
+    fn started(&mut self, _ctx: &mut Self::Context) {
         info!("WS session started");
 
-        ctx.run_interval(Duration::from_secs(1), |act, ctx| {
-            // for msg in act.rx.try_iter() {
-            //     info!("WS msg: {:#?}", msg);
-            // }
-        });
+        // ctx.run_interval(Duration::from_secs(1), |act, ctx| {
+        //     act.tx.send(KernelMsg::Ping).unwrap();
+        //     ctx.text(serde_json::to_string(&KernelMsg::Ping).unwrap());
+        // });
     }
 }
 
@@ -39,21 +28,11 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for Ws {
             Ok(ws::Message::Text(text)) => {
                 self.handle_text(text.to_string(), ctx);
             }
-            Ok(ws::Message::Binary(bin)) => {
-                println!("Binary: {:?}", bin);
-            }
-            Ok(ws::Message::Ping(msg)) => {
-                println!("Ping: {:?}", msg);
-            }
-            Ok(ws::Message::Pong(msg)) => {
-                println!("Pong: {:?}", msg);
-            }
-            Ok(ws::Message::Close(reason)) => {
-                println!("Close: {:?}", reason);
-            }
+
             Err(e) => {
                 println!("Error: {:?}", e);
             }
+
             _ => warn!("Unhandled message {:?}", msg),
         }
     }
@@ -73,7 +52,7 @@ struct WsMessage {
     data: String,
 
     #[serde(rename = "cellUuid")]
-    cell_uuid: String,
+    cell_uuid: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -91,12 +70,8 @@ pub struct WsResponse {
 
 impl Ws {
     pub fn new(notebook: &Notebook) -> Self {
-        let (tx, rx) = mpsc::channel();
-
         Self {
             notebook: notebook.clone(),
-            tx,
-            rx,
         }
     }
 
@@ -110,7 +85,7 @@ impl Ws {
         };
 
         match msg.cmd {
-            WsCmds::Run => match self.notebook.eval_cell(&msg.cell_uuid, &msg.data) {
+            WsCmds::Run => match self.notebook.eval_cell(&msg.cell_uuid.unwrap(), &msg.data) {
                 Ok(_) => info!("Evaluated cell"),
                 Err(e) => warn!("Could not evaluate cell: {}", e),
             },
@@ -118,7 +93,7 @@ impl Ws {
                 let response = WsMessage {
                     cmd: WsCmds::Pong,
                     data: String::new(),
-                    cell_uuid: String::new(),
+                    cell_uuid: Some(String::new()),
                 };
 
                 ctx.text(serde_json::to_string(&response).unwrap());

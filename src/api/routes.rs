@@ -6,7 +6,7 @@ use actix_web::{get, post, web, HttpRequest, HttpResponse, Responder};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
-use std::{collections::HashMap, thread};
+use std::collections::HashMap;
 use tracing::info;
 
 #[get("/")]

@@ -1,23 +1,11 @@
 use super::{
     cell::{CellType, LocalValue},
-    errors::NotebookErrors,
     kernel_client::KernelClientMsg,
 };
-use crate::{
-    api::routes::EvalResult,
-    core::{
-        cell::Cell,
-        kernel_client::{KernelClient, KernelMsg},
-        topology::Topology,
-    },
-};
+use crate::core::{cell::Cell, kernel_client::KernelMsg, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use std::{
-    collections::HashMap,
-    error::Error,
-    sync::mpsc::{Receiver, Sender},
-};
+use std::{collections::HashMap, error::Error, sync::mpsc::Sender};
 use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
