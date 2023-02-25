@@ -10,18 +10,22 @@ def main():
     socket.bind("tcp://*:8081")
     print("Connected to server")
 
-    def handle_err(err, locals):
+    def handle_err(notebook_uuid, cell_uuid, err, locals):
         error_msg = json.dumps({
+            "notebook_uuid": notebook_uuid,
+            "cell_uuid": cell_uuid,
             "locals": locals,
             "error": err,
         })
         socket.send_string(error_msg)
 
-    def handle_send(locals):
+    def handle_send(notebook_uuid, cell_uuid, locals):
         # TODO handle errors
         res_msg = json.dumps({
+            "notebook_uuid": notebook_uuid,
+            "cell_uuid": cell_uuid,
             "locals": locals,
-            "error": None,
+            # "error": None,
         })
         print(f"Sending response: {res_msg}")
         socket.send_string(res_msg)
@@ -33,22 +37,17 @@ def main():
 
         content = msg["content"]
         execution_type = msg["execution_type"]
+        notebook_uuid = msg["notebook_uuid"]
+        cell_uuid = msg["cell_uuid"]
 
-        if execution_type == "Eval":
-            for line in run_cmd(["python", "eval.py", content, json.dumps(full_locals), execution_type]):
-                locals = json.loads(line)
-                if "error" in locals:
-                    handle_err(locals["error"], locals["locals"])
-                else:
-                    handle_send(locals)
-        else:
-            for line in run_cmd(["python", "exec.py", content, json.dumps(full_locals), execution_type]):
-                locals = json.loads(line)
-                print(f"Locals: {locals}")
-                if "error" in locals:
-                    handle_err(locals["error"], locals["locals"])
-                else:
-                    handle_send(locals)
+        cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
+        for line in run_cmd(["python", cmd_file, content, json.dumps(full_locals), execution_type]):
+            locals = json.loads(line)
+            if "error" in locals:
+                handle_err(notebook_uuid, cell_uuid,
+                           locals["error"], locals["locals"])
+            else:
+                handle_send(notebook_uuid, cell_uuid, locals)
 
 
 def run_cmd(cmd):

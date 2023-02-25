@@ -1,21 +1,30 @@
-use crate::core::{kernel_client::KernelClient, notebook::Notebook};
+use crate::core::{
+    kernel_client::{KernelClient, KernelClientMsg},
+    notebook::Notebook,
+};
 use std::{
     collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{mpsc::Sender, Arc, Mutex},
+    thread,
 };
 
 pub struct State {
     pub open_notebooks: Arc<Mutex<HashMap<String, Notebook>>>,
-    pub kernel_client: Arc<Mutex<KernelClient>>,
+    pub kernel_sender: Arc<Mutex<Sender<KernelClientMsg>>>,
 }
 
 impl State {
     pub fn new() -> Self {
-        let kernel_client = KernelClient::new().expect("Could not create kernel client");
+        let mut kernel_client = KernelClient::new().expect("Could not create kernel client");
+        let sender = kernel_client.tx.clone();
+
+        thread::spawn(move || {
+            kernel_client.start();
+        });
 
         Self {
             open_notebooks: Arc::new(Mutex::new(HashMap::new())),
-            kernel_client: Arc::new(Mutex::new(kernel_client)),
+            kernel_sender: Arc::new(Mutex::new(sender)),
         }
     }
 }

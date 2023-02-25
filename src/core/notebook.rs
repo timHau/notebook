@@ -1,19 +1,23 @@
 use super::{
     cell::{CellType, LocalValue},
     errors::NotebookErrors,
+    kernel_client::KernelClientMsg,
 };
 use crate::{
-    api::ws::EvalResult,
+    api::routes::EvalResult,
     core::{
         cell::Cell,
-        kernel_client::{ExecutionType, KernelClient, KernelMessage},
+        kernel_client::{KernelClient, KernelMsg},
         topology::Topology,
     },
 };
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
-use serde_json::Value;
-use std::{collections::HashMap, error::Error};
+use std::{
+    collections::HashMap,
+    error::Error,
+    sync::mpsc::{Receiver, Sender},
+};
 use tracing::info;
 
 #[derive(Debug, Default, Serialize, Deserialize, Clone)]
@@ -48,10 +52,13 @@ pub struct Notebook {
 
     #[serde(skip)]
     pub scope: Scope,
+
+    #[serde(skip)]
+    pub kernel_sender: Option<Sender<KernelClientMsg>>,
 }
 
 impl Notebook {
-    pub fn new() -> Self {
+    pub fn new(kernel_sender: Sender<KernelClientMsg>) -> Self {
         let mut scope = Scope::default();
         let mut topology = Topology::from_vec(
             vec![
@@ -77,8 +84,9 @@ impl Notebook {
         .unwrap();
         topology.build(&mut scope).unwrap();
 
+        let uuid = nanoid!(30);
         Self {
-            uuid: nanoid!(30),
+            uuid,
             meta_data: NotebookMetadata::default(),
             scope,
             language_info: LanguageInfo {
@@ -88,23 +96,18 @@ impl Notebook {
             },
             topology,
             title: String::from("Untitled Notebook"),
+            kernel_sender: Some(kernel_sender),
         }
     }
 
-    pub fn eval_cell(
-        &mut self,
-        cell_uuid: &str,
-        next_content: &str,
-        kernel_client: &KernelClient,
-    ) -> Result<EvalResult, Box<dyn Error>> {
+    pub fn eval_cell(&mut self, cell_uuid: &str, next_content: &str) -> Result<(), Box<dyn Error>> {
         // update cell content if it has changed
         self.topology
             .update_cell(cell_uuid, next_content, &mut self.scope)?;
 
-        let mut result = HashMap::new();
-
         // get an topological order of the cell uuids and execute them in order
         let execution_seq = self.topology.execution_seq(cell_uuid)?;
+
         for uuid in execution_seq {
             let topology = self.topology.clone();
             if let Some(cell) = self.topology.get_cell_mut(&uuid) {
@@ -116,27 +119,25 @@ impl Notebook {
                             // gather all the locals from the dependencies
                             let locals = Self::locals_from_dependencies(&cell, &dependencies);
 
-                            let msg = KernelMessage {
-                                content: statement.content.clone(),
+                            let msg = KernelClientMsg::KernelMsg(KernelMsg {
+                                notebook_uuid: self.uuid.clone(),
+                                cell_uuid: cell.uuid.clone(),
+                                content: Some(statement.content.clone()),
                                 locals: locals.clone(),
-                                execution_type: statement.execution_type.clone(),
-                            };
-                            let res = kernel_client.send_to_kernel(&msg)?;
-
+                                execution_type: Some(statement.execution_type.clone()),
+                                error: None,
+                            });
                             // TODO check if the new locals overwrite any of the existing ones
-
-                            info!("res: {:#?}", res);
-                            cell.locals.extend(res.locals.clone());
-                            info!("cell.locals: {:#?}", cell.locals);
-                            result.insert(cell.uuid.clone(), cell.locals.clone());
+                            let kernel_sender = self.kernel_sender.as_ref().unwrap();
+                            kernel_sender.send(msg)?
                         }
                     }
-                    _ => return Err(Box::new(NotebookErrors::NotYetImplemented)),
+                    _ => todo!(),
                 }
             }
         }
 
-        Ok(result)
+        Ok(())
     }
 
     fn locals_from_dependencies(

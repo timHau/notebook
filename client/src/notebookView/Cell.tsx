@@ -7,7 +7,9 @@ import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
 import Api from "../api/api";
+import { WsMessage } from "../api/ws";
 import "./Cell.css"
+import { send } from "../store/wsSlice";
 
 type CellProps = {
     cellUuid: string;
@@ -18,23 +20,23 @@ function Cell(props: CellProps) {
     const { cellUuid, notebookUuid } = props;
 
     const [error, setError] = useState<String>("");
-
     const dispatch = useAppDispatch();
+
     async function handleEval(data: string) {
         try {
-            const res = await Api.evalCell(notebookUuid, cellUuid, data);
-            if (res.status === "error") {
-                setError(res.message);
-                return;
-            }
-            // let wsMessage: WsMessage = {
-            //     cmd: "Run",
-            //     cellUuid,
-            //     data,
-            //     notebookUuid
+            // const res = await Api.evalCell(notebookUuid, cellUuid, data);
+            // if (res.status === "error") {
+            //     setError(res.message);
+            //     return;
             // }
-            // wsClient.send(wsMessage)
-            dispatch(updateBinding(res.result));
+
+            let wsMessage: WsMessage = {
+                cmd: "Run",
+                cellUuid,
+                data,
+            }
+            dispatch(send(wsMessage))
+            // dispatch(updateBinding(res.result));
         } catch (error: any) {
             console.log(error);
             setError(error.message);

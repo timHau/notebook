@@ -8,28 +8,36 @@ import { NotebookT } from './types';
 function App() {
   const [notebook, setNotebook] = useState<NotebookT>();
 
-  const dispatch = useAppDispatch()
+  const dispatch = useAppDispatch();
 
   useEffect(() => {
     async function initNotebook() {
       try {
         const notebook = await Api.getNotebook();
-        setNotebook(notebook);
-      } catch (error) {
-        console.log(error);
-      }
-    }
-    initNotebook();
 
-    async function initWebSocket() {
-      let wsUrl = import.meta.env.VITE_WS_URL;
-      try {
+        const notebookUuid = notebook?.uuid;
+        let wsUrl = `${import.meta.env.VITE_WS_URL}?notebookUuid=${notebookUuid}`;
+        let ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+          console.log("Connected to websocket");
+        }
+        ws.onerror = (error) => {
+          console.log(error);
+        }
+        ws.onmessage = (event) => {
+          console.log(event.data);
+        }
+
+        dispatch(initWs(ws));
+        setNotebook(notebook);
+
       } catch (error) {
-        dispatch(initWs(wsUrl));
         console.log(error);
       }
+
     }
-    initWebSocket();
+
+    initNotebook();
   }, []);
 
   if (!notebook) {
