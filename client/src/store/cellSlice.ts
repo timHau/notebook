@@ -1,4 +1,5 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
+import { WsMessage } from "../api/ws";
 import { CellT, LocalsT } from "../types";
 
 interface cellsState {
@@ -6,11 +7,15 @@ interface cellsState {
         [key: string]: CellT
     },
     bindings: LocalsT
+    output: {
+        [key: string]: WsMessage
+    },
 }
 
 const initialState: cellsState = {
     mappings: {},
-    bindings: {}
+    bindings: {},
+    output: {},
 }
 
 export const cellsSlice = createSlice({
@@ -32,10 +37,14 @@ export const cellsSlice = createSlice({
         },
         unsyncCell: (state, action: PayloadAction<string>) => {
             state.mappings[action.payload].isSynced = false;
-        }
+        },
+        addOutput: (state, action: PayloadAction<WsMessage>) => {
+            let msg = action.payload;
+            state.output[msg.cellUuid] = msg;
+        },
     },
 });
 
-export const { initCell, updateBinding, unsyncCell } = cellsSlice.actions;
+export const { initCell, updateBinding, unsyncCell, addOutput } = cellsSlice.actions;
 
 export default cellsSlice.reducer;

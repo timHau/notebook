@@ -3,10 +3,18 @@ export type WsClientT = {
     send: (data: WsMessage) => void;
 };
 
+export enum WsCmds {
+    Run = 'Run',
+    Res = 'Res',
+    Err = 'Err',
+    Ping = 'Ping',
+    Pong = 'Pong',
+}
+
 export type WsMessage = {
-    cmd: string;
+    cmd: WsCmds;
     data?: any;
-    cellUuid?: string;
+    cellUuid: string;
     locals?: any;
 };
 

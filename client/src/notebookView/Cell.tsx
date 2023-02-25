@@ -1,46 +1,29 @@
 import { CellT } from "../types";
 import { RxTriangleRight } from "react-icons/rx";
-import { unsyncCell, updateBinding } from "../store/cellSlice";
+import { unsyncCell } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { KeyboardEvent, ReactNode, useState } from "react";
+import { KeyboardEvent, ReactNode, useEffect, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
-import Api from "../api/api";
-import { WsMessage } from "../api/ws";
+import { WsMessage, WsCmds } from "../api/ws";
 import "./Cell.css"
-import { send } from "../store/wsSlice";
 
 type CellProps = {
     cellUuid: string;
-    notebookUuid: string;
+    ws: WebSocket;
 }
 
 function Cell(props: CellProps) {
-    const { cellUuid, notebookUuid } = props;
-
-    const [error, setError] = useState<String>("");
-    const dispatch = useAppDispatch();
+    const { cellUuid, ws } = props;
 
     async function handleEval(data: string) {
-        try {
-            // const res = await Api.evalCell(notebookUuid, cellUuid, data);
-            // if (res.status === "error") {
-            //     setError(res.message);
-            //     return;
-            // }
-
-            let wsMessage: WsMessage = {
-                cmd: "Run",
-                cellUuid,
-                data: data,
-            }
-            dispatch(send(wsMessage))
-            // dispatch(updateBinding(res.result));
-        } catch (error: any) {
-            console.log(error);
-            setError(error.message);
+        let wsMessage: WsMessage = {
+            cmd: WsCmds.Run,
+            cellUuid,
+            data: data,
         }
+        ws.send(JSON.stringify(wsMessage));
     }
 
     const cell = useAppSelector((state) => state.cells.mappings[cellUuid]);
@@ -48,11 +31,17 @@ function Cell(props: CellProps) {
         return <div>Loading...</div>
     }
 
+    const out = useAppSelector((state) => state.cells.output[cellUuid]);
+
+    console.log("out", out);
+    const hasError = out && out.cmd === WsCmds.Err;
+    const hasOutput = out && out.cmd === WsCmds.Res;
     return (
         <div>
             <CellEditor cell={cell} handleEval={handleEval} />
             <CellBindings cellUuid={cellUuid} />
-            {error && <div className="text-red-500">{error}</div>}
+            {hasError && <div className="text-red-500">{out.data}</div>}
+            {/* <div className="text-green-500">TEST {out}</div> */}
         </div >
     )
 }

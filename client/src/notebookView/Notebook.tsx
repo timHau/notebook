@@ -1,10 +1,11 @@
 import Cell from "./Cell";
-import { initCell } from "../store/cellSlice";
+import { initCell, addOutput } from "../store/cellSlice";
 import { CellT } from "../types"
 import { useAppDispatch } from "../store/hooks";
 import { useEffect, useState } from "react";
 import { DragDropContext, Droppable, Draggable } from "react-beautiful-dnd";
 import Api from "../api/api";
+import { WsCmds, WsMessage } from "../api/ws";
 
 export type NotebookProps = {
     notebook: any;
@@ -13,8 +14,36 @@ export type NotebookProps = {
 function Notebook(props: NotebookProps) {
     const { notebook } = props;
     const [order, setOrder] = useState<string[]>(notebook.topology.display_order);
+    const [ws, setWs] = useState<WebSocket>();
 
     const dispatch = useAppDispatch()
+
+    useEffect(() => {
+
+        const notebookUuid = notebook?.uuid;
+        let wsUrl = `${import.meta.env.VITE_WS_URL}?notebookUuid=${notebookUuid}`;
+        let ws = new WebSocket(wsUrl);
+        ws.onopen = () => {
+            console.log("Connected to websocket");
+            // setInterval(() => {
+            //   let wsMessage = {
+            //     cmd: "Ping",
+            //     out: Date.now().toString(),
+            //   } as WsMessage;
+            //   ws.send(JSON.stringify(wsMessage));
+            // }, 1000);
+            setWs(ws);
+        }
+
+        ws.onmessage = (event) => {
+            let wsMessage = JSON.parse(event.data) as WsMessage;
+            dispatch(addOutput(wsMessage));
+        }
+
+        return () => {
+            ws.close();
+        }
+    }, []);
 
     useEffect(() => {
         let cells: CellT[] = notebook.topology.display_order.map((uuid: string) => notebook.topology.cells[uuid]);
@@ -40,6 +69,9 @@ function Notebook(props: NotebookProps) {
         setOrder(newOrder);
     }
 
+    if (!notebook) return (<div>Loading...</div>)
+    if (!ws) return (<div>No Websocket connection...</div>)
+
     return (
         <div className="min-w-3/4 max-w-6xl pt-5">
             <div className="flex justify-between mb-5">
@@ -64,7 +96,7 @@ function Notebook(props: NotebookProps) {
                                             <Cell
                                                 key={cellUuid}
                                                 cellUuid={cellUuid}
-                                                notebookUuid={notebook.uuid}
+                                                ws={ws}
                                             />
                                         </div>
                                     )}

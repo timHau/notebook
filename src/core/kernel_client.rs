@@ -61,36 +61,42 @@ impl KernelClient {
             .execution_cells
             .iter()
             .fold(0, |acc, cell| acc + cell.statements.len());
+        info!("num_messages: {}", num_messages);
 
         let msg = serde_json::to_string(msg)?;
         self.socket.send(&msg, 0)?;
 
         for _ in 0..num_messages {
             let msg = self.socket.recv_string(0)?;
-            self.handle_msg(msg)?;
-        }
+            match msg {
+                Ok(msg) => {
+                    let res: MsgFromKernel = serde_json::from_str(&msg)?;
+                    info!("Received message from kernel: {:#?}", res);
 
-        Ok(())
-    }
-
-    fn handle_msg(&self, msg: Result<String, Vec<u8>>) -> Result<(), Box<dyn Error>> {
-        match msg {
-            Ok(msg) => {
-                let res: MsgFromKernel = serde_json::from_str(&msg)?;
-                let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
-                    Some(ws_conn) => ws_conn,
-                    None => {
-                        return Err(Box::new(NotebookErrors::KernelError(
-                            "No ws connection".to_string(),
-                        )))
+                    let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
+                        Some(ws_conn) => ws_conn,
+                        None => {
+                            warn!("Could not find ws connection");
+                            continue;
+                        }
+                    };
+                    if let Some(err) = &res.error {
+                        warn!("Error from kernel: {}", err);
+                        ws_conn.do_send(res);
+                        break;
                     }
-                };
-                ws_conn.do_send(res);
 
-                Ok(())
+                    ws_conn.do_send(res);
+                }
+                Err(_e) => {
+                    warn!("Could not parse message");
+                    break;
+                }
             }
-            Err(_e) => Err(Box::new(KernelClientErrors::CouldNotParse)),
         }
+
+        info!("Finished sending messages to kernel {}", num_messages);
+        Ok(())
     }
 }
 

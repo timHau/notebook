@@ -22,19 +22,25 @@ def main():
         acc_locals = {}
 
         for i in range(len(execution_cells)):
-            cell = execution_cells[i]
-            cell_locals = locals_of_deps[i]
+            try:
+                cell = execution_cells[i]
+                cell_locals = locals_of_deps[i]
 
-            for key, value in cell_locals.items():
-                acc_locals[key] = value
+                for key, value in cell_locals.items():
+                    acc_locals[key] = value
 
-            print(f"Executing cell: {cell}")
-            statements = cell["statements"]
-            cell_uuid = cell["uuid"]
+                print(f"Executing cell: {cell}")
+                statements = cell["statements"]
+                cell_uuid = cell["uuid"]
 
-            for statement in statements:
-                run_statement(statement, acc_locals,
-                              notebook_uuid, cell_uuid),
+                for statement in statements:
+                    try:
+                        run_statement(statement, acc_locals,
+                                      notebook_uuid, cell_uuid)
+                    except Exception as e:
+                        raise e
+            except Exception as e:
+                break
 
 
 def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
@@ -43,23 +49,21 @@ def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
 
     print(f"Executing: {content}")
 
-    try:
-        cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
-        for out in run_cmd(["python", cmd_file, content, json.dumps(acc_locals), execution_type]):
-            locals = json.loads(out)
+    cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
+    for out in run_cmd(["python", cmd_file, content, json.dumps(acc_locals), execution_type]):
+        locals = json.loads(out)
 
-            for key, value in locals.items():
-                acc_locals[key] = value
+        for key, value in locals.items():
+            acc_locals[key] = value
 
-            print(f"Received: {json.dumps(acc_locals, indent=2)}")
+        print(f"Received: {json.dumps(acc_locals, indent=2)}")
 
-            if "error" in acc_locals:
-                handle_err(notebook_uuid, cell_uuid,
-                           acc_locals["error"], acc_locals["locals"])
-            else:
-                handle_send(notebook_uuid, cell_uuid, acc_locals)
-    except Exception as e:
-        handle_err(notebook_uuid, cell_uuid, str(e), acc_locals)
+        if "error" in acc_locals:
+            handle_err(notebook_uuid, cell_uuid,
+                       acc_locals["error"], acc_locals["locals"])
+            raise Exception(acc_locals["error"])
+        else:
+            handle_send(notebook_uuid, cell_uuid, acc_locals)
 
 
 def handle_err(notebook_uuid, cell_uuid, err, locals):

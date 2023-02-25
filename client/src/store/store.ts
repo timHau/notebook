@@ -1,6 +1,5 @@
 import { configureStore } from '@reduxjs/toolkit';
 import cellsReducer from "./cellSlice";
-import wsReducer from "./wsSlice";
 
 const store = configureStore({
     middleware: (getDefaultMiddleware) => getDefaultMiddleware({
@@ -8,7 +7,6 @@ const store = configureStore({
     }),
     reducer: {
         cells: cellsReducer,
-        ws: wsReducer,
     },
 });
 

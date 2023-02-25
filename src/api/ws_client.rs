@@ -1,10 +1,6 @@
 use std::collections::HashMap;
 
-use crate::core::{
-    cell::LocalValue,
-    kernel_client::{MsgFromKernel, MsgToKernel},
-    notebook::Notebook,
-};
+use crate::core::{cell::LocalValue, kernel_client::MsgFromKernel, notebook::Notebook};
 use actix::{Actor, Handler, StreamHandler};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
