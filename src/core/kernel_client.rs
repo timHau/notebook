@@ -77,11 +77,6 @@ impl KernelClient {
         match msg {
             Ok(msg) => {
                 let res: MsgFromKernel = serde_json::from_str(&msg)?;
-                if let Some(error) = res.error {
-                    return Err(Box::new(NotebookErrors::KernelError(error)));
-                }
-
-                // send to ws
                 let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
                     Some(ws_conn) => ws_conn,
                     None => {
