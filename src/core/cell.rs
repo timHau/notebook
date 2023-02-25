@@ -29,6 +29,7 @@ pub struct Cell {
     pub uuid: String,
     pub cell_type: CellType,
     pub content: String,
+    pub statements: Vec<Statement>,
 
     #[serde(skip)]
     pub locals: HashMap<String, LocalValue>,
@@ -41,9 +42,6 @@ pub struct Cell {
 
     #[serde(skip)]
     ignore_bindings: HashSet<String>,
-
-    #[serde(skip)]
-    pub statements: Vec<Statement>,
 }
 
 impl Cell {

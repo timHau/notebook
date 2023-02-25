@@ -1,4 +1,7 @@
-use super::{cell::LocalValue, statement::Statement};
+use super::{
+    cell::{Cell, LocalValue},
+    statement::Statement,
+};
 use crate::{api::ws_client::WsClient, core::errors::NotebookErrors};
 use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
@@ -54,12 +57,15 @@ impl KernelClient {
 
     pub fn send_to_kernel(&self, msg: &MsgToKernel) -> Result<(), Box<dyn Error>> {
         info!("sending message to kernel: {:#?}", msg);
-        let num_statements = msg.statements.len();
+        let num_messages = msg
+            .execution_cells
+            .iter()
+            .fold(0, |acc, cell| acc + cell.statements.len());
 
         let msg = serde_json::to_string(msg)?;
         self.socket.send(&msg, 0)?;
 
-        for _ in 0..num_statements {
+        for _ in 0..num_messages {
             let msg = self.socket.recv_string(0)?;
             self.handle_msg(msg)?;
         }
@@ -110,8 +116,8 @@ pub enum KernelClientMsg {
 pub struct MsgToKernel {
     pub notebook_uuid: String,
     pub cell_uuid: String,
-    pub locals: HashMap<String, LocalValue>,
-    pub statements: Vec<Statement>,
+    pub execution_cells: Vec<Cell>,
+    pub locals_of_deps: Vec<HashMap<String, LocalValue>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

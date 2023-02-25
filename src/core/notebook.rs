@@ -96,30 +96,27 @@ impl Notebook {
         // get an topological order of the cell uuids and execute them in order
         let execution_seq = self.topology.execution_seq(cell_uuid)?;
 
-        for uuid in execution_seq {
-            let topology = self.topology.clone();
-            if let Some(cell) = self.topology.get_cell_mut(&uuid) {
-                info!("cell: {:#?}", cell);
-                match cell.cell_type {
-                    CellType::ReactiveCode => {
-                        let dependencies = topology.get_dependencies(&cell.uuid);
-                        // gather all the locals from the dependencies
-                        let locals = Self::locals_from_dependencies(&cell, &dependencies);
+        let execution_cells = execution_seq
+            .iter()
+            .map(|uuid| self.topology.cells.get(uuid).unwrap().clone())
+            .collect::<Vec<_>>();
 
-                        let msg = KernelClientMsg::MsgToKernel(MsgToKernel {
-                            notebook_uuid: self.uuid.clone(),
-                            cell_uuid: cell.uuid.clone(),
-                            locals: locals.clone(),
-                            statements: cell.statements.clone(),
-                        });
+        let locals_of_deps = execution_cells
+            .iter()
+            .map(|cell| {
+                let dependencies = self.topology.get_dependencies(&cell.uuid);
+                Self::locals_from_dependencies(&cell, &dependencies)
+            })
+            .collect::<Vec<_>>();
 
-                        let kernel_sender = self.kernel_sender.as_ref().unwrap();
-                        kernel_sender.send(msg)?
-                    }
-                    _ => todo!(),
-                }
-            }
-        }
+        let msg = KernelClientMsg::MsgToKernel(MsgToKernel {
+            notebook_uuid: self.uuid.clone(),
+            cell_uuid: cell_uuid.to_string(),
+            locals_of_deps,
+            execution_cells,
+        });
+        let kernel_sender = self.kernel_sender.as_ref().unwrap();
+        kernel_sender.send(msg)?;
 
         Ok(())
     }

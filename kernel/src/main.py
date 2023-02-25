@@ -2,63 +2,82 @@ import zmq
 import json
 import subprocess
 
+context = zmq.Context()
+socket = context.socket(zmq.PAIR)
+# socket.connect("tcp://localhost:8081")
+socket.bind("tcp://*:8081")
+print("Connected to server")
+
 
 def main():
-    context = zmq.Context()
-    socket = context.socket(zmq.PAIR)
-    # socket.connect("tcp://localhost:8081")
-    socket.bind("tcp://*:8081")
-    print("Connected to server")
-
-    def handle_err(notebook_uuid, cell_uuid, err, locals):
-        error_msg = json.dumps({
-            "notebook_uuid": notebook_uuid,
-            "cell_uuid": cell_uuid,
-            "locals": locals,
-            "error": err,
-        })
-        socket.send_string(error_msg)
-
-    def handle_send(notebook_uuid, cell_uuid, locals):
-        res_msg = json.dumps({
-            "notebook_uuid": notebook_uuid,
-            "cell_uuid": cell_uuid,
-            "locals": locals,
-            # "error": None,
-        })
-        print(f"Sending response: {res_msg}")
-        socket.send_string(res_msg)
 
     while True:
         message = socket.recv_string()
         msg = json.loads(message)
-        full_locals = msg["locals"]
 
-        statements = msg["statements"]
         notebook_uuid = msg["notebook_uuid"]
-        cell_uuid = msg["cell_uuid"]
+        execution_cells = msg["execution_cells"]
+        locals_of_deps = msg["locals_of_deps"]
 
-        for statement in statements:
-            execution_type = statement["execution_type"]
-            content = statement["content"]
+        acc_locals = {}
 
-            print(f"Executing: {content}")
+        for i in range(len(execution_cells)):
+            cell = execution_cells[i]
+            cell_locals = locals_of_deps[i]
 
-            next_locals = full_locals
-            cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
-            for line in run_cmd(["python", cmd_file, content, json.dumps(full_locals), execution_type]):
-                locals = json.loads(line)
+            for key, value in cell_locals.items():
+                acc_locals[key] = value
 
-                for key, value in locals.items():
-                    next_locals[key] = value
+            print(f"Executing cell: {cell}")
+            statements = cell["statements"]
+            cell_uuid = cell["uuid"]
 
-                print(f"Received: {locals}")
+            for statement in statements:
+                run_statement(statement, acc_locals,
+                              notebook_uuid, cell_uuid),
 
-                if "error" in locals:
-                    handle_err(notebook_uuid, cell_uuid,
-                               locals["error"], locals["locals"])
-                else:
-                    handle_send(notebook_uuid, cell_uuid, locals)
+
+def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
+    execution_type = statement["execution_type"]
+    content = statement["content"]
+
+    print(f"Executing: {content}")
+
+    cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
+    for line in run_cmd(["python", cmd_file, content, json.dumps(acc_locals), execution_type]):
+        locals = json.loads(line)
+
+        for key, value in locals.items():
+            acc_locals[key] = value
+
+        print(f"Received: {json.dumps(acc_locals, indent=2)}")
+
+        if "error" in acc_locals:
+            handle_err(notebook_uuid, cell_uuid,
+                       acc_locals["error"], acc_locals["locals"])
+        else:
+            handle_send(notebook_uuid, cell_uuid, acc_locals)
+
+
+def handle_err(notebook_uuid, cell_uuid, err, locals):
+    error_msg = json.dumps({
+        "notebook_uuid": notebook_uuid,
+        "cell_uuid": cell_uuid,
+        "locals": locals,
+        "error": err,
+    })
+    socket.send_string(error_msg)
+
+
+def handle_send(notebook_uuid, cell_uuid, locals):
+    res_msg = json.dumps({
+        "notebook_uuid": notebook_uuid,
+        "cell_uuid": cell_uuid,
+        "locals": locals,
+        # "error": None,
+    })
+    print(f"Sending response: {res_msg}")
+    socket.send_string(res_msg)
 
 
 def run_cmd(cmd):
