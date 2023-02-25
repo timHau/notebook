@@ -1,9 +1,9 @@
-use super::cell::LocalValue;
+use super::{cell::LocalValue, statement::Statement};
 use crate::{api::ws_client::WsClient, core::errors::NotebookErrors};
 use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, fmt, sync::mpsc};
-use tracing::info;
+use tracing::{info, log::warn};
 use zmq::Socket;
 
 pub struct KernelClient {
@@ -40,10 +40,10 @@ impl KernelClient {
                     KernelClientMsg::InitWs(uuid, sender) => {
                         self.ws_mapping.insert(uuid, sender);
                     }
-                    KernelClientMsg::KernelMsg(msg) => {
-                        let res = self.send_to_kernel(&msg);
-                        info!("res: {:#?}", res);
+                    KernelClientMsg::MsgToKernel(msg) => {
+                        let _res = self.send_to_kernel(&msg);
                     }
+                    _ => warn!("Unhandled message {:?}", msg),
                 },
                 Err(_e) => {
                     info!("Could not receive message");
@@ -52,14 +52,25 @@ impl KernelClient {
         }
     }
 
-    pub fn send_to_kernel(&self, msg: &KernelMsg) -> Result<(), Box<dyn Error>> {
-        info!("sending: {:#?}", msg);
+    pub fn send_to_kernel(&self, msg: &MsgToKernel) -> Result<(), Box<dyn Error>> {
+        info!("sending message to kernel: {:#?}", msg);
+        let num_statements = msg.statements.len();
+
         let msg = serde_json::to_string(msg)?;
         self.socket.send(&msg, 0)?;
-        let msg = self.socket.recv_string(0)?;
+
+        for _ in 0..num_statements {
+            let msg = self.socket.recv_string(0)?;
+            self.handle_msg(msg)?;
+        }
+
+        Ok(())
+    }
+
+    fn handle_msg(&self, msg: Result<String, Vec<u8>>) -> Result<(), Box<dyn Error>> {
         match msg {
             Ok(msg) => {
-                let res: KernelMsg = serde_json::from_str(&msg)?;
+                let res: MsgFromKernel = serde_json::from_str(&msg)?;
                 if let Some(error) = res.error {
                     return Err(Box::new(NotebookErrors::KernelError(error)));
                 }
@@ -82,12 +93,6 @@ impl KernelClient {
     }
 }
 
-#[derive(Debug, Clone)]
-pub enum KernelClientMsg {
-    InitWs(String, Addr<WsClient>),
-    KernelMsg(KernelMsg),
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum ExecutionType {
     Exec,
@@ -95,17 +100,29 @@ pub enum ExecutionType {
     Definition,
 }
 
+#[derive(Debug, Clone)]
+pub enum KernelClientMsg {
+    InitWs(String, Addr<WsClient>),
+    MsgToKernel(MsgToKernel),
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct KernelMsg {
+pub struct MsgToKernel {
     pub notebook_uuid: String,
     pub cell_uuid: String,
-    pub content: Option<String>,
     pub locals: HashMap<String, LocalValue>,
-    pub execution_type: Option<ExecutionType>,
+    pub statements: Vec<Statement>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct MsgFromKernel {
+    pub notebook_uuid: String,
+    pub cell_uuid: String,
+    pub locals: HashMap<String, LocalValue>,
     pub error: Option<String>,
 }
 
-impl Message for KernelMsg {
+impl Message for MsgFromKernel {
     type Result = ();
 }
 

@@ -5,8 +5,9 @@ export type WsClientT = {
 
 export type WsMessage = {
     cmd: string;
-    data: any;
-    cellUuid: string;
+    data?: any;
+    cellUuid?: string;
+    locals?: any;
 };
 
 export type WsMessageEvent = {

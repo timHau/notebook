@@ -33,7 +33,7 @@ function Cell(props: CellProps) {
             let wsMessage: WsMessage = {
                 cmd: "Run",
                 cellUuid,
-                data,
+                data: data,
             }
             dispatch(send(wsMessage))
             // dispatch(updateBinding(res.result));

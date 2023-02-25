@@ -22,19 +22,20 @@ function App() {
         ws.onopen = () => {
           console.log("Connected to websocket");
 
-          setInterval(() => {
-            let wsMessage = {
-              cmd: "Ping",
-              data: Date.now().toString(),
-            } as WsMessage;
-            ws.send(JSON.stringify(wsMessage));
-          }, 1000);
+          // setInterval(() => {
+          //   let wsMessage = {
+          //     cmd: "Ping",
+          //     out: Date.now().toString(),
+          //   } as WsMessage;
+          //   ws.send(JSON.stringify(wsMessage));
+          // }, 1000);
         }
         ws.onerror = (error) => {
           console.log(error);
         }
         ws.onmessage = (event) => {
-          console.log(event.data);
+          const wsMessage = JSON.parse(event.data) as WsMessage;
+          handleMessage(wsMessage)
         }
 
         dispatch(initWs(ws));
@@ -48,6 +49,13 @@ function App() {
 
     initNotebook();
   }, []);
+
+  function handleMessage(wsMessage: WsMessage) {
+    if (wsMessage.cmd === "Pong") {
+      return
+    }
+    console.log(wsMessage);
+  }
 
   if (!notebook) {
     return <div>Loading...</div>

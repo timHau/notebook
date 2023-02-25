@@ -1,4 +1,10 @@
-use crate::core::{kernel_client::KernelMsg, notebook::Notebook};
+use std::collections::HashMap;
+
+use crate::core::{
+    cell::LocalValue,
+    kernel_client::{MsgFromKernel, MsgToKernel},
+    notebook::Notebook,
+};
 use actix::{Actor, Handler, StreamHandler};
 use actix_web_actors::ws;
 use serde::{Deserialize, Serialize};
@@ -37,10 +43,12 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for WsClient {
     }
 }
 
-impl Handler<KernelMsg> for WsClient {
+impl Handler<MsgFromKernel> for WsClient {
     type Result = ();
 
-    fn handle(&mut self, msg: KernelMsg, ctx: &mut Self::Context) {
+    fn handle(&mut self, msg: MsgFromKernel, ctx: &mut Self::Context) {
+        info!("Sending message to Client: {:#?}", msg);
+        let msg: WsMessage = msg.into();
         ctx.text(serde_json::to_string(&msg).unwrap());
     }
 }
@@ -48,15 +56,38 @@ impl Handler<KernelMsg> for WsClient {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct WsMessage {
     cmd: WsCmds,
-    data: String,
+    data: Option<String>,
+    locals: Option<HashMap<String, LocalValue>>,
 
     #[serde(rename = "cellUuid")]
     cell_uuid: Option<String>,
 }
 
+impl From<MsgFromKernel> for WsMessage {
+    fn from(msg: MsgFromKernel) -> Self {
+        if let Some(err) = msg.error {
+            Self {
+                cmd: WsCmds::Err,
+                data: Some(err),
+                locals: None,
+                cell_uuid: Some(msg.cell_uuid),
+            }
+        } else {
+            Self {
+                cmd: WsCmds::Res,
+                data: None,
+                cell_uuid: Some(msg.cell_uuid),
+                locals: Some(msg.locals),
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 enum WsCmds {
     Run,
+    Res,
+    Err,
     Ping,
     Pong,
 }
@@ -77,21 +108,26 @@ impl WsClient {
             }
         };
 
+        info!("Received message: {:#?}", msg);
         match msg.cmd {
-            WsCmds::Run => match self.notebook.eval_cell(&msg.cell_uuid.unwrap(), &msg.data) {
+            WsCmds::Run => match self
+                .notebook
+                .eval_cell(&msg.cell_uuid.unwrap(), &msg.data.unwrap())
+            {
                 Ok(_) => info!("Evaluated cell"),
                 Err(e) => warn!("Could not evaluate cell: {}", e),
             },
             WsCmds::Ping => {
-                let response = WsMessage {
-                    cmd: WsCmds::Pong,
-                    data: String::new(),
-                    cell_uuid: Some(String::new()),
-                };
+                // let response = WsMessage {
+                //     cmd: WsCmds::Pong,
+                //     out: None,
+                //     cell_uuid: None,
+                //     locals: None,
+                // };
 
-                ctx.text(serde_json::to_string(&response).unwrap());
+                // ctx.text(serde_json::to_string(&response).unwrap());
             }
-            WsCmds::Pong => {}
+            _ => {}
         }
     }
 }

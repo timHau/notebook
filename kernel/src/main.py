@@ -20,7 +20,6 @@ def main():
         socket.send_string(error_msg)
 
     def handle_send(notebook_uuid, cell_uuid, locals):
-        # TODO handle errors
         res_msg = json.dumps({
             "notebook_uuid": notebook_uuid,
             "cell_uuid": cell_uuid,
@@ -35,19 +34,31 @@ def main():
         msg = json.loads(message)
         full_locals = msg["locals"]
 
-        content = msg["content"]
-        execution_type = msg["execution_type"]
+        statements = msg["statements"]
         notebook_uuid = msg["notebook_uuid"]
         cell_uuid = msg["cell_uuid"]
 
-        cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
-        for line in run_cmd(["python", cmd_file, content, json.dumps(full_locals), execution_type]):
-            locals = json.loads(line)
-            if "error" in locals:
-                handle_err(notebook_uuid, cell_uuid,
-                           locals["error"], locals["locals"])
-            else:
-                handle_send(notebook_uuid, cell_uuid, locals)
+        for statement in statements:
+            execution_type = statement["execution_type"]
+            content = statement["content"]
+
+            print(f"Executing: {content}")
+
+            next_locals = full_locals
+            cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
+            for line in run_cmd(["python", cmd_file, content, json.dumps(full_locals), execution_type]):
+                locals = json.loads(line)
+
+                for key, value in locals.items():
+                    next_locals[key] = value
+
+                print(f"Received: {locals}")
+
+                if "error" in locals:
+                    handle_err(notebook_uuid, cell_uuid,
+                               locals["error"], locals["locals"])
+                else:
+                    handle_send(notebook_uuid, cell_uuid, locals)
 
 
 def run_cmd(cmd):

@@ -2,7 +2,7 @@ use super::{
     cell::{CellType, LocalValue},
     kernel_client::KernelClientMsg,
 };
-use crate::core::{cell::Cell, kernel_client::KernelMsg, topology::Topology};
+use crate::core::{cell::Cell, kernel_client::MsgToKernel, topology::Topology};
 use nanoid::nanoid;
 use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, error::Error, sync::mpsc::Sender};
@@ -103,22 +103,18 @@ impl Notebook {
                 match cell.cell_type {
                     CellType::ReactiveCode => {
                         let dependencies = topology.get_dependencies(&cell.uuid);
-                        for statement in cell.statements.iter() {
-                            // gather all the locals from the dependencies
-                            let locals = Self::locals_from_dependencies(&cell, &dependencies);
+                        // gather all the locals from the dependencies
+                        let locals = Self::locals_from_dependencies(&cell, &dependencies);
 
-                            let msg = KernelClientMsg::KernelMsg(KernelMsg {
-                                notebook_uuid: self.uuid.clone(),
-                                cell_uuid: cell.uuid.clone(),
-                                content: Some(statement.content.clone()),
-                                locals: locals.clone(),
-                                execution_type: Some(statement.execution_type.clone()),
-                                error: None,
-                            });
-                            // TODO check if the new locals overwrite any of the existing ones
-                            let kernel_sender = self.kernel_sender.as_ref().unwrap();
-                            kernel_sender.send(msg)?
-                        }
+                        let msg = KernelClientMsg::MsgToKernel(MsgToKernel {
+                            notebook_uuid: self.uuid.clone(),
+                            cell_uuid: cell.uuid.clone(),
+                            locals: locals.clone(),
+                            statements: cell.statements.clone(),
+                        });
+
+                        let kernel_sender = self.kernel_sender.as_ref().unwrap();
+                        kernel_sender.send(msg)?
                     }
                     _ => todo!(),
                 }

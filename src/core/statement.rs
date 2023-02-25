@@ -1,7 +1,8 @@
 use super::kernel_client::ExecutionType;
 use rustpython_parser::ast::Location;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Statement {
     pub execution_type: ExecutionType,
     pub content: String,
