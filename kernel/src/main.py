@@ -49,8 +49,7 @@ def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
 
     print(f"Executing: {content}")
 
-    cmd_file = "eval.py" if execution_type == "Eval" else "exec.py"
-    for out in run_cmd(["python", cmd_file, content, json.dumps(acc_locals), execution_type]):
+    for out in run_cmd(["python", "run.py", content, json.dumps(acc_locals), execution_type]):
         locals = json.loads(out)
 
         for key, value in locals.items():

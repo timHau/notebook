@@ -63,6 +63,16 @@ def eval_code(code, locals):
     return f.getvalue()
 
 
+def exec_code(code, locals):
+    f = StringIO()
+    with redirect_stdout(f):
+        try:
+            exec(code, {}, locals)
+        except Exception as e:
+            raise e
+    return f.getvalue()
+
+
 code = sys.argv[1]
 locals_str = sys.argv[2]
 execution_type = sys.argv[3]
@@ -70,7 +80,10 @@ locals_full = json.loads(locals_str)
 
 locals_decoded = locals_decode(locals_full)
 try:
-    res = eval_code(code, locals_decoded)
+    if execution_type == "Eval":
+        res = eval_code(code, locals_decoded)
+    else:
+        res = exec_code(code, locals_decoded)
     if res != "" and res is not None:
         locals_decoded["<stdout>"] = res
 
