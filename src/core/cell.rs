@@ -134,7 +134,7 @@ impl Cell {
             let start = stmt_kind.location;
             let end = stmt_kind.end_location.unwrap_or(start);
             let statement = match &stmt_kind.node {
-                // StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
+                StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
                 StmtKind::Import { .. }
                 | StmtKind::ImportFrom { .. }
                 | StmtKind::FunctionDef { .. }

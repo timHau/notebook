@@ -64,7 +64,6 @@ impl KernelClient {
         info!("num_messages: {}", num_messages);
 
         let msg = serde_pickle::to_vec(msg, Default::default())?;
-        info!("msg: {:?}", msg);
         self.socket.send(&msg, 0)?;
 
         for _ in 0..num_messages {

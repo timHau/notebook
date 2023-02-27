@@ -1,6 +1,9 @@
 import zmq
+from io import StringIO
+from contextlib import redirect_stdout
 import dill
 import codecs
+import base64
 import subprocess
 
 context = zmq.Context()
@@ -49,29 +52,27 @@ def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
     execution_type = statement["execution_type"]
     content = statement["content"]
 
-    locals_pickled = dill.dumps(acc_locals)
-    locals_str = codecs.encode(locals_pickled, 'base64').decode()
+    locals_decoded = locals_decode(acc_locals)
+    try:
+        if execution_type == "Eval":
+            res = eval_code(content, locals_decoded)
+        else:
+            res = exec_code(content, locals_decoded)
+        if res != "" and res is not None:
+            locals_decoded["<stdout>"] = res
+    except Exception as e:
+        locals = locals_encode(locals_decoded, acc_locals, execution_type)
+        handle_err(notebook_uuid, cell_uuid,
+                   str(e), locals)
+        raise e
 
-    res = []
-    for out in run_cmd(["python", "run.py", content, locals_str, execution_type]):
-        # locals = dill.loads(codecs.decode(out.encode(), 'base64'))
-        if out == "":
-            continue
-        res_str = codecs.decode(out.encode(), 'base64')
-        res.append(res_str)
-
-    res_str = b"".join(res)
-    locals = dill.loads(res_str)
-
+    print(f"Locals: {acc_locals}")
+    locals = locals_encode(locals_decoded, acc_locals, execution_type)
+    print(f"Locals encoded: {locals}")
     for key, value in locals.items():
         acc_locals[key] = value
 
-    if "error" in acc_locals:
-        handle_err(notebook_uuid, cell_uuid,
-                   acc_locals["error"], acc_locals["locals"])
-        raise Exception(acc_locals["error"])
-    else:
-        handle_send(notebook_uuid, cell_uuid, acc_locals)
+    handle_send(notebook_uuid, cell_uuid, acc_locals)
 
 
 def handle_err(notebook_uuid, cell_uuid, err, locals):
@@ -94,6 +95,72 @@ def handle_send(notebook_uuid, cell_uuid, locals):
     }
     print(f"Sending response: {res_msg}")
     socket.send(dill.dumps(res_msg))
+
+
+def eval_code(code, locals):
+    f = StringIO()
+    with redirect_stdout(f):
+        try:
+            res = eval(code, {}, locals)
+            if res is not None and res != "":
+                locals["<stdout>"] = res
+        except Exception as e:
+            raise e
+    return f.getvalue()
+
+
+def exec_code(code, locals):
+    f = StringIO()
+    with redirect_stdout(f):
+        try:
+            exec(code, {}, locals)
+        except Exception as e:
+            raise e
+    return f.getvalue()
+
+
+def locals_encode(locals, full_locals, new_type):
+    res = {}
+
+    for key, value in locals.items():
+        if key in full_locals:
+            execution_type = full_locals[key]["local_type"]
+            if execution_type == "Definition":
+                dumped = dill.dumps(value)
+                res[key] = {
+                    "local_type": execution_type,
+                    "value": base64.b64encode(dumped).decode("utf-8")
+                }
+            else:
+                res[key] = {
+                    "local_type": execution_type,
+                    "value": value,
+                }
+        else:
+            if new_type == "Definition":
+                dumped = dill.dumps(value)
+                res[key] = {
+                    "local_type": new_type,
+                    "value": base64.b64encode(dumped).decode("utf-8")
+                }
+            else:
+                res[key] = {
+                    "local_type": new_type,
+                    "value": value,
+                }
+
+    return res
+
+
+def locals_decode(locals):
+    res = {}
+    for key, value in locals.items():
+        if value["local_type"] == "Definition":
+            decoded_bytes = base64.b64decode(value["value"])
+            res[key] = dill.loads(decoded_bytes)
+        else:
+            res[key] = value["value"]
+    return res
 
 
 def run_cmd(cmd):
