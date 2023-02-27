@@ -63,36 +63,31 @@ impl KernelClient {
             .fold(0, |acc, cell| acc + cell.statements.len());
         info!("num_messages: {}", num_messages);
 
-        let msg = serde_json::to_string(msg)?;
+        let msg = serde_pickle::to_vec(msg, Default::default())?;
+        info!("msg: {:?}", msg);
         self.socket.send(&msg, 0)?;
 
         for _ in 0..num_messages {
-            let msg = self.socket.recv_string(0)?;
-            match msg {
-                Ok(msg) => {
-                    let res: MsgFromKernel = serde_json::from_str(&msg)?;
-                    info!("Received message from kernel: {:#?}", res);
+            let mut msg = zmq::Message::new();
+            self.socket.recv(&mut msg, 0)?;
 
-                    let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
-                        Some(ws_conn) => ws_conn,
-                        None => {
-                            warn!("Could not find ws connection");
-                            continue;
-                        }
-                    };
-                    if let Some(err) = &res.error {
-                        warn!("Error from kernel: {}", err);
-                        ws_conn.do_send(res);
-                        break;
-                    }
+            let res: MsgFromKernel = serde_pickle::from_slice(&msg, Default::default())?;
+            info!("Received message from kernel: {:#?}", res);
 
-                    ws_conn.do_send(res);
+            let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
+                Some(ws_conn) => ws_conn,
+                None => {
+                    warn!("Could not find ws connection");
+                    continue;
                 }
-                Err(_e) => {
-                    warn!("Could not parse message");
-                    break;
-                }
+            };
+            if let Some(err) = &res.error {
+                warn!("Error from kernel: {}", err);
+                ws_conn.do_send(res);
+                break;
             }
+
+            ws_conn.do_send(res);
         }
 
         info!("Finished sending messages to kernel {}", num_messages);

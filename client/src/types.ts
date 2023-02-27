@@ -6,20 +6,23 @@ export type CellT = {
     cell_type: string;
     content: string;
     pos: number;
-    dependencies: [string];
+    dependencies: string[];
     isSynced?: boolean;
+    bindings?: string[];
 };
 
 export type LocalsT = {
-    [key: string]: BindingT,
-};
-
-export type BindingT = {
     [key: string]: {
         value: string;
-        local_type: string;
+        local_type: LocalType;
     };
 };
+
+export enum LocalType {
+    Defintion = 'Definition',
+    Eval = 'Eval',
+    Exec = 'Exec',
+}
 
 export type NotebookT = {
     uuid: string;

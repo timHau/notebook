@@ -32,9 +32,12 @@ export const cellsSlice = createSlice({
             let msg = action.payload;
             state.output[msg.cellUuid] = msg;
         },
+        updateCellContent: (state, action: PayloadAction<{ uuid: string, content: string }>) => {
+            state.mappings[action.payload.uuid].content = action.payload.content;
+        }
     },
 });
 
-export const { initCell, unsyncCell, addOutput } = cellsSlice.actions;
+export const { initCell, unsyncCell, updateCellContent, addOutput } = cellsSlice.actions;
 
 export default cellsSlice.reducer;

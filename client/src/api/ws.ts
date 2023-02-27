@@ -13,9 +13,11 @@ export enum WsCmds {
 
 export type WsMessage = {
     cmd: WsCmds;
-    data?: any;
+    data?: string;
+    content?: string;
     cellUuid: string;
     locals?: any;
+    bindings?: string[];
 };
 
 export type WsMessageEvent = {

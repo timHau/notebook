@@ -1,7 +1,7 @@
 import sys
-import json
 from io import StringIO
 from contextlib import redirect_stdout
+import codecs
 import zmq
 import dill
 import base64
@@ -75,8 +75,8 @@ def exec_code(code, locals):
 
 code = sys.argv[1]
 locals_str = sys.argv[2]
+locals_full = dill.loads(codecs.decode(locals_str.encode(), 'base64'))
 execution_type = sys.argv[3]
-locals_full = json.loads(locals_str)
 
 locals_decoded = locals_decode(locals_full)
 try:
@@ -88,11 +88,15 @@ try:
         locals_decoded["<stdout>"] = res
 
     locals = locals_encode(locals_decoded, locals_full, execution_type)
-    print(json.dumps(locals))
+    locals_pickled = dill.dumps(locals)
+    locals_str = codecs.encode(locals_pickled, 'base64').decode()
+    print(locals_str)
 except Exception as e:
     locals = locals_encode(locals_decoded, locals_full, execution_type)
     err = {
         "error": str(e),
         "locals": locals
     }
-    print(json.dumps(err))
+    err_pickled = dill.dumps(err)
+    err_str = codecs.encode(err_pickled, 'base64').decode()
+    print(err_str)

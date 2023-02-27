@@ -1,8 +1,8 @@
-import { CellT, LocalsT } from "../types";
+import { CellT, LocalsT, LocalType } from "../types";
 import { RxTriangleRight } from "react-icons/rx";
-import { unsyncCell } from "../store/cellSlice";
+import { unsyncCell, updateCellContent } from "../store/cellSlice";
 import { useAppSelector, useAppDispatch } from "../store/hooks";
-import { KeyboardEvent, ReactNode, useState } from "react";
+import { KeyboardEvent, ReactNode, useEffect, useState } from "react";
 import CodeMirror from "@uiw/react-codemirror";
 import { python } from "@codemirror/lang-python";
 import { atomone } from "@uiw/codemirror-themes-all";
@@ -17,13 +17,22 @@ type CellProps = {
 function Cell(props: CellProps) {
     const { cellUuid, ws } = props;
 
+    const dispatch = useAppDispatch();
+
     async function handleEval(data: string) {
+        console.log("Evaluating cell", data);
         let wsMessage: WsMessage = {
             cmd: WsCmds.Run,
             cellUuid,
             data: data,
         }
         ws.send(JSON.stringify(wsMessage));
+
+        const updateMsg = {
+            uuid: cell.uuid,
+            content: data,
+        }
+        dispatch(updateCellContent(updateMsg))
     }
 
     const cell = useAppSelector((state) => state.cells.mappings[cellUuid]);
@@ -32,15 +41,15 @@ function Cell(props: CellProps) {
     }
 
     const out = useAppSelector((state) => state.cells.output[cellUuid]);
-
     console.log("out", out);
+
     const hasError = out && out.cmd === WsCmds.Err;
     const hasOutput = out && out.cmd === WsCmds.Res;
     return (
         <div>
             <CellEditor cell={cell} handleEval={handleEval} />
             {hasError && <div className="text-red-500">{out.data}</div>}
-            {hasOutput && <CellOutput locals={out.locals} />}
+            {hasOutput && <CellOutput locals={out.locals} cell={cell} />}
         </div >
     )
 }
@@ -111,14 +120,15 @@ function CellEditor(props: CellEditorProps) {
 
 export type CellOutputProps = {
     locals: LocalsT;
+    cell: CellT;
 }
 
 function CellOutput(props: CellOutputProps) {
-    const { locals } = props;
+    const { locals, cell } = props;
 
     function formatOutput(key: string): ReactNode {
         let { value, local_type } = locals[key as any];
-        if (!value || local_type === "Definition") return
+        if (!value || local_type === LocalType.Defintion) return
         return (<div key={key} className="text-xs max-h-96 overflow-scroll scrollbar-hide">
             <span className="pr-1">{key === "" ? "" : key + ":"}</span>
             <span className="">{value}</span>

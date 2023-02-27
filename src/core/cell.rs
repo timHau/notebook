@@ -30,12 +30,10 @@ pub struct Cell {
     pub cell_type: CellType,
     pub content: String,
     pub statements: Vec<Statement>,
+    pub bindings: HashSet<String>,
 
     #[serde(skip)]
     pub locals: HashMap<String, LocalValue>,
-
-    #[serde(skip)]
-    pub bindings: HashSet<String>,
 
     #[serde(skip)]
     pub required: HashSet<String>,
@@ -136,8 +134,7 @@ impl Cell {
             let start = stmt_kind.location;
             let end = stmt_kind.end_location.unwrap_or(start);
             let statement = match &stmt_kind.node {
-                StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
-
+                // StmtKind::Expr { .. } => Statement::new_eval(&start, &end, &self.content),
                 StmtKind::Import { .. }
                 | StmtKind::ImportFrom { .. }
                 | StmtKind::FunctionDef { .. }

@@ -52,6 +52,7 @@ impl Notebook {
             vec![
                 Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap(),
                 Cell::new_reactive("import time\n\nfor i in range(20):\n    print(i)\n    time.sleep(1)", &mut scope).unwrap(),
+                // Cell::new_reactive(TMP_2, &mut scope).unwrap(),
                 Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
                 Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
                 Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += 1", &mut scope).unwrap(),
@@ -204,4 +205,20 @@ plt.title(\"Training Loss and Accuracy\")
 plt.xlabel(\"Epoch #\")
 plt.ylabel(\"Loss/Accuracy\")
 plt.legend()
+";
+
+const TMP_2: &str = "
+import tensorflow as tf
+
+cifar = tf.keras.datasets.cifar100
+(x_train, y_train), (x_test, y_test) = cifar.load_data()
+model = tf.keras.applications.ResNet50(
+    include_top=True,
+    weights=None,
+    input_shape=(32, 32, 3),
+    classes=100,)
+
+loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
+model.compile(optimizer=\"adam\", loss=loss_fn, metrics=[\"accuracy\"])
+model.fit(x_train, y_train, epochs=5, batch_size=64)
 ";
