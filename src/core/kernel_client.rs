@@ -1,11 +1,8 @@
-use super::{
-    cell::{Cell, LocalValue},
-    statement::Statement,
-};
-use crate::{api::ws_client::WsClient, core::errors::NotebookErrors};
+use super::cell::{Cell, LocalValue};
+use crate::api::ws_client::WsClient;
 use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, fmt, sync::mpsc};
+use std::{collections::HashMap, error::Error, fmt, process::Command, sync::mpsc};
 use tracing::{info, log::warn};
 use zmq::Socket;
 
@@ -18,6 +15,17 @@ pub struct KernelClient {
 
 impl KernelClient {
     pub fn new() -> Result<Self, Box<dyn Error>> {
+        let current_dir = std::env::current_dir()?;
+        let kernel_path = current_dir.join("kernel").join("src").join("main.py");
+        info!("kernel path: {:?}", kernel_path);
+        let res = Command::new("python3")
+            .current_dir("./kernel/src/")
+            .arg("main.py")
+            .spawn()
+            .expect("Failed to start kernel");
+
+        info!("res: {:?}", res);
+
         let zmq_port = std::env::var("ZMQ_PORT")
             .unwrap_or_else(|_| "8081".to_string())
             .parse::<u16>()?;
