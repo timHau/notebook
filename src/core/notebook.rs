@@ -1,6 +1,6 @@
 use super::{
     cell::{CellType, LocalValue},
-    kernel_client::KernelClientMsg,
+    kernel_client::{KernelClient, KernelClientMsg},
 };
 use crate::core::{cell::Cell, kernel_client::MsgToKernel, topology::Topology};
 use nanoid::nanoid;
@@ -52,7 +52,7 @@ impl Notebook {
             vec![
                 Cell::new_reactive("def add(a, b):\n  return a + b", &mut scope).unwrap(),
                 Cell::new_reactive("import time\n\nfor i in range(20):\n    print(i)\n    time.sleep(1)", &mut scope).unwrap(),
-                // Cell::new_reactive(TMP_2, &mut scope).unwrap(),
+                Cell::new_reactive(TMP_3, &mut scope).unwrap(),
                 Cell::new_reactive("a = 1 + 2\nb = 5\nc = 12", &mut scope).unwrap(),
                 Cell::new_reactive("add(5, 2)", &mut scope).unwrap(),
                 Cell::new_reactive("sum = 0\nfor i in range(10):\n  sum += 1", &mut scope).unwrap(),
@@ -62,7 +62,7 @@ impl Notebook {
                     &mut scope,
                 )
                 .unwrap(),
-                Cell::new_reactive(TMP, &mut scope).unwrap(),
+                // Cell::new_reactive(TMP, &mut scope).unwrap(),
                 Cell::new_reactive(
                     "import asyncio\n\nasync def main():\n  print('hello')\n\nasyncio.run(main())",
                     &mut scope,
@@ -221,4 +221,12 @@ model = tf.keras.applications.ResNet50(
 loss_fn = tf.keras.losses.SparseCategoricalCrossentropy(from_logits=True)
 model.compile(optimizer=\"adam\", loss=loss_fn, metrics=[\"accuracy\"])
 model.fit(x_train, y_train, epochs=5, batch_size=64)
+";
+
+const TMP_3: &str = "
+import matplotlib.pyplot as plt
+import numpy as np 
+
+x = np.arange(0, 4*np.pi, 0.1)
+y = np.sin(x)
 ";

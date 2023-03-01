@@ -2,21 +2,25 @@ import zmq
 from io import StringIO
 from contextlib import redirect_stdout
 import dill
-import codecs
 import base64
 import subprocess
 
 context = zmq.Context()
-socket = context.socket(zmq.PAIR)
-# socket.connect("tcp://localhost:8081")
-socket.bind("tcp://*:8081")
+pub_socket = context.socket(zmq.PUB)
+pub_socket.bind("tcp://*:8081")
+
+rep_socket = context.socket(zmq.REP)
+rep_socket.bind("tcp://*:8082")
+
 print("Connected to server")
 
 
 def main():
 
     while True:
-        message = socket.recv()
+        message = rep_socket.recv()
+        rep_socket.send(b"OK")
+
         msg = dill.loads(message)
 
         notebook_uuid = msg["notebook_uuid"]
@@ -46,6 +50,9 @@ def main():
                         raise e
             except Exception as e:
                 break
+
+        handle_send(notebook_uuid, cell_uuid, acc_locals, ended=True)
+        print("Ended")
 
 
 def run_statement(statement, acc_locals, notebook_uuid, cell_uuid):
@@ -83,18 +90,28 @@ def handle_err(notebook_uuid, cell_uuid, err, locals):
         "error": err,
     }
     print(f"Sending error: {error_msg}")
-    socket.send(dill.dumps(error_msg))
+    # pub_socket.send_multipart([
+    #     str.encode(notebook_uuid),
+    #     dill.dumps(error_msg)
+    # ])
+    pub_socket.send(dill.dumps(error_msg))
 
 
-def handle_send(notebook_uuid, cell_uuid, locals):
+def handle_send(notebook_uuid, cell_uuid, locals, ended=False):
     res_msg = {
         "notebook_uuid": notebook_uuid,
         "cell_uuid": cell_uuid,
         "locals": locals,
         # "error": None,
+        "ended": ended,
     }
-    print(f"Sending response: {res_msg}")
-    socket.send(dill.dumps(res_msg))
+    # print(f"Sending response: {res_msg}")
+    print(f"Sending response")
+    # pub_socket.send_multipart([
+    #     str.encode(notebook_uuid),
+    #     dill.dumps(res_msg)
+    # ])
+    pub_socket.send(dill.dumps(res_msg))
 
 
 def eval_code(code, locals):

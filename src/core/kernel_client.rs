@@ -2,12 +2,13 @@ use super::cell::{Cell, LocalValue};
 use crate::api::ws_client::WsClient;
 use actix::{Addr, Message};
 use serde::{Deserialize, Serialize};
-use std::{collections::HashMap, error::Error, fmt, process::Command, sync::mpsc};
+use std::{collections::HashMap, error::Error, fmt, process::Command, sync::mpsc, thread};
 use tracing::{info, log::warn};
 use zmq::Socket;
 
 pub struct KernelClient {
-    socket: Socket,
+    sub_socket: Socket,
+    req_socket: Socket,
     rx: mpsc::Receiver<KernelClientMsg>,
     pub tx: mpsc::Sender<KernelClientMsg>,
     ws_mapping: HashMap<String, Addr<WsClient>>, // notebook_uuid, ws sender
@@ -18,26 +19,36 @@ impl KernelClient {
         let current_dir = std::env::current_dir()?;
         let kernel_path = current_dir.join("kernel").join("src").join("main.py");
         info!("kernel path: {:?}", kernel_path);
-        let res = Command::new("python3")
-            .current_dir("./kernel/src/")
-            .arg("main.py")
-            .spawn()
-            .expect("Failed to start kernel");
 
-        info!("res: {:?}", res);
-
-        let zmq_port = std::env::var("ZMQ_PORT")
+        let zmq_port_sub = std::env::var("ZMQ_PORT_SUB")
             .unwrap_or_else(|_| "8081".to_string())
             .parse::<u16>()?;
+        let zmq_port_req = std::env::var("ZMQ_PORT_REQ")
+            .unwrap_or_else(|_| "8081".to_string())
+            .parse::<u16>()?;
+
         let ctx = zmq::Context::new();
-        let socket = ctx.socket(zmq::PAIR)?;
-        // socket.bind(&format!("tcp://*:{:?}", zmq_port))?;
-        socket.connect(&format!("tcp://localhost:{:?}", zmq_port))?;
+
+        let sub_socket = ctx.socket(zmq::SUB)?;
+        sub_socket.connect(&format!("tcp://localhost:{:?}", zmq_port_sub))?;
+        sub_socket.set_subscribe(b"")?;
+
+        let req_socket = ctx.socket(zmq::REQ)?;
+        req_socket.connect(&format!("tcp://localhost:{:?}", zmq_port_req))?;
+
+        thread::spawn(|| {
+            Command::new("python3")
+                .current_dir("./kernel/src/")
+                .arg("main.py")
+                .spawn()
+                .expect("Failed to start kernel");
+        });
 
         let (tx, rx) = mpsc::channel();
 
         Ok(Self {
-            socket,
+            sub_socket,
+            req_socket,
             rx,
             tx,
             ws_mapping: HashMap::new(),
@@ -46,16 +57,21 @@ impl KernelClient {
 
     pub fn start(&mut self) {
         loop {
+            info!("waiting in start for message");
             match self.rx.recv() {
-                Ok(msg) => match msg {
-                    KernelClientMsg::InitWs(uuid, sender) => {
-                        self.ws_mapping.insert(uuid, sender);
+                Ok(msg) => {
+                    info!("Received message: {:#?}", msg);
+                    match msg {
+                        KernelClientMsg::InitWs(uuid, sender) => {
+                            self.ws_mapping.insert(uuid, sender);
+                        }
+                        KernelClientMsg::MsgToKernel(msg) => {
+                            let _res = self.send_to_kernel(&msg);
+                            let res = self.receive_from_kernel();
+                            info!("res: {:?}", res);
+                        }
                     }
-                    KernelClientMsg::MsgToKernel(msg) => {
-                        let _res = self.send_to_kernel(&msg);
-                    }
-                    _ => warn!("Unhandled message {:?}", msg),
-                },
+                }
                 Err(_e) => {
                     info!("Could not receive message");
                 }
@@ -63,23 +79,20 @@ impl KernelClient {
         }
     }
 
-    pub fn send_to_kernel(&self, msg: &MsgToKernel) -> Result<(), Box<dyn Error>> {
-        info!("sending message to kernel: {:#?}", msg);
-        let num_messages = msg
-            .execution_cells
-            .iter()
-            .fold(0, |acc, cell| acc + cell.statements.len());
-        info!("num_messages: {}", num_messages);
+    pub fn receive_from_kernel(&self) -> Result<(), Box<dyn Error>> {
+        loop {
+            info!("Waiting for response from kernel");
 
-        let msg = serde_pickle::to_vec(msg, Default::default())?;
-        self.socket.send(&msg, 0)?;
-
-        for _ in 0..num_messages {
             let mut msg = zmq::Message::new();
-            self.socket.recv(&mut msg, 0)?;
+            self.sub_socket.recv(&mut msg, 0)?;
 
+            info!("msg: {:?}", msg);
             let res: MsgFromKernel = serde_pickle::from_slice(&msg, Default::default())?;
             info!("Received message from kernel: {:#?}", res);
+            if res.ended {
+                info!("Kernel ended");
+                break;
+            }
 
             let ws_conn = match self.ws_mapping.get(&res.notebook_uuid) {
                 Some(ws_conn) => ws_conn,
@@ -97,8 +110,27 @@ impl KernelClient {
             ws_conn.do_send(res);
         }
 
-        info!("Finished sending messages to kernel {}", num_messages);
         Ok(())
+    }
+
+    pub fn send_to_kernel(&self, msg: &MsgToKernel) -> Result<(), Box<dyn Error>> {
+        info!("sending message to kernel: {:#?}", msg);
+
+        let msg = serde_pickle::to_vec(msg, Default::default())?;
+        self.req_socket.send(&msg, 0)?;
+        let res = self.req_socket.recv_bytes(0)?;
+        info!("Received response from kernel: {:?}", res);
+
+        Ok(())
+    }
+}
+
+impl fmt::Debug for KernelClient {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("KernelClient")
+            // .field("socket", &self.socket)
+            .field("ws_mapping", &self.ws_mapping)
+            .finish()
     }
 }
 
@@ -123,12 +155,13 @@ pub struct MsgToKernel {
     pub locals_of_deps: Vec<HashMap<String, LocalValue>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct MsgFromKernel {
     pub notebook_uuid: String,
     pub cell_uuid: String,
     pub locals: HashMap<String, LocalValue>,
     pub error: Option<String>,
+    pub ended: bool,
 }
 
 impl Message for MsgFromKernel {
