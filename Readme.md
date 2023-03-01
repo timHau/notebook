@@ -15,3 +15,7 @@ When a cell is evaluated, the code is parsed and a directed acyclic graph (DAG) 
 ## Status
 
 This Repository is only a Prototype and should not used in production. There are major parts missing like e.g. inline plotting and handing of complex data structures (np tensors etc.).
+
+## Inspiration
+
+Heavily inspired by [Observable](https://observablehq.com/) and [Pluto](https://github.com/fonsp/Pluto.jl)
