@@ -88,6 +88,7 @@ def handle_err(notebook_uuid, cell_uuid, err, locals):
         "cell_uuid": cell_uuid,
         "locals": locals,
         "error": err,
+        "ended": False,
     }
     print(f"Sending error: {error_msg}")
     # pub_socket.send_multipart([
@@ -142,29 +143,37 @@ def locals_encode(locals, full_locals, new_type):
     for key, value in locals.items():
         if key in full_locals:
             execution_type = full_locals[key]["local_type"]
-            if execution_type == "Definition":
-                dumped = dill.dumps(value)
-                res[key] = {
-                    "local_type": execution_type,
-                    "value": base64.b64encode(dumped).decode("utf-8")
-                }
-            else:
-                res[key] = {
-                    "local_type": execution_type,
-                    "value": value,
-                }
+            # if execution_type == "Definition":
+            #     dumped = dill.dumps(value)
+            #     res[key] = {
+            #         "local_type": execution_type,
+            #         "value": base64.b64encode(dumped).decode("utf-8")
+            #     }
+            # else:
+            #     res[key] = {
+            #         "local_type": execution_type,
+            #         "value": value,
+            #     }
+            res[key] = {
+                "local_type": execution_type,
+                "value": value,
+            }
         else:
-            if new_type == "Definition":
-                dumped = dill.dumps(value)
-                res[key] = {
-                    "local_type": new_type,
-                    "value": base64.b64encode(dumped).decode("utf-8")
-                }
-            else:
-                res[key] = {
-                    "local_type": new_type,
-                    "value": value,
-                }
+            # if new_type == "Definition":
+            #     dumped = dill.dumps(value)
+            #     res[key] = {
+            #         "local_type": new_type,
+            #         "value": base64.b64encode(dumped).decode("utf-8")
+            #     }
+            # else:
+            #     res[key] = {
+            #         "local_type": new_type,
+            #         "value": value,
+            #     }
+            res[key] = {
+                "local_type": new_type,
+                "value": value,
+            }
 
     return res
 
@@ -172,11 +181,12 @@ def locals_encode(locals, full_locals, new_type):
 def locals_decode(locals):
     res = {}
     for key, value in locals.items():
-        if value["local_type"] == "Definition":
-            decoded_bytes = base64.b64decode(value["value"])
-            res[key] = dill.loads(decoded_bytes)
-        else:
-            res[key] = value["value"]
+        # if value["local_type"] == "Definition":
+        #     decoded_bytes = base64.b64decode(value["value"])
+        #     res[key] = dill.loads(decoded_bytes)
+        # else:
+        #     res[key] = value["value"]
+        res[key] = value["value"]
     return res
 
 
