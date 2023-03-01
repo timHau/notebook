@@ -4,6 +4,10 @@ Instead of treating every cell separately, this projects finds a [topological so
 
 ## Demo
 
+
+https://user-images.githubusercontent.com/12029285/222263333-17708f92-5c23-4f65-8fd7-4292096b5a85.mp4
+
+
 ## How does it work
 
 When a cell is evaluated, the code is parsed and a directed acyclic graph (DAG) is build. The nodes of this graph are the cell uuids and an edge between cell `a` and cell `b` is inserted if `a` uses a variable from cell `b`. Afterwards we build an topological order of the cell dependencies, split the code of each cell up into smaller "statements" of different types (Definitions, Exec, Eval) and send via [ØMQ](https://zeromq.org/) to a python mini kernel. This kernel is responsible to eval/exec the code and sends it back. Then the response is streamed via Websockets to the client.
